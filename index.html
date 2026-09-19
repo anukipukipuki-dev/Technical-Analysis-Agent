@@ -9,13 +9,14 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg:       #04080f; --sur:  #091526; --sur2: #0d1f35; --sur3: #112440;
-      --bdr:      #1a3356; --bdr2: #0e2038;
-      --txt:      #c0d4e8; --tdim: #4a6880; --tbri: #e8f4ff;
-      --acc:      #00d4aa; --adim: #004d3d;
-      --grn:      #00e676; --gdim: #003d1a;
-      --red:      #ff3355; --rdim: #3d0010;
-      --yel:      #ffcc44; --ydim: #332800;
+      --bg:#04080f; --sur:#091526; --sur2:#0d1f35; --sur3:#112440;
+      --bdr:#1a3356; --bdr2:#0e2038;
+      --txt:#c0d4e8; --tdim:#4a6880; --tbri:#e8f4ff;
+      --acc:#00d4aa; --adim:#004d3d;
+      --grn:#00e676; --gdim:#003d1a;
+      --red:#ff3355; --rdim:#3d0010;
+      --yel:#ffcc44; --ydim:#332800;
+      --ora:#ff9933;
       --font:'Space Grotesk',system-ui,sans-serif;
       --mono:'JetBrains Mono','Courier New',monospace;
       --r:10px; --rsm:6px;
@@ -56,7 +57,7 @@
     /* ── TABS ── */
     .tabs{background:var(--sur);border-bottom:1px solid var(--bdr);padding:0 20px;display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
     .tabs::-webkit-scrollbar{display:none}
-    .tab{padding:10px 16px;font-size:12px;font-weight:500;color:var(--tdim);cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;display:flex;align-items:center;gap:5px}
+    .tab{padding:10px 14px;font-size:12px;font-weight:500;color:var(--tdim);cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;display:flex;align-items:center;gap:5px}
     .tab:hover{color:var(--txt)}
     .tab.active{color:var(--acc);border-bottom-color:var(--acc)}
     .tcnt{background:var(--sur2);color:var(--tdim);padding:1px 5px;border-radius:8px;font-size:9px}
@@ -105,42 +106,89 @@
 
     /* ── INDICATORS ── */
     .inds{padding:9px 13px}
-    .ititle{font-size:8px;text-transform:uppercase;letter-spacing:.1em;color:var(--tdim);margin-bottom:6px}
-    .irow{display:grid;grid-template-columns:auto 1fr auto;gap:2px 8px;align-items:start;padding:4px 0 5px;border-bottom:1px solid rgba(26,51,86,.3)}
+    .ititle{font-size:8px;text-transform:uppercase;letter-spacing:.1em;color:var(--tdim);margin-bottom:6px;display:flex;align-items:center;gap:6px}
+    .irow{display:grid;grid-template-columns:78px 1fr auto;gap:5px;align-items:center;padding:2px 0;border-bottom:1px solid rgba(26,51,86,.3)}
     .irow:last-child{border-bottom:none}
-    .inm{display:flex;flex-direction:column;gap:1px;min-width:76px;max-width:116px}
-    .in{font-size:10px;color:var(--tdim);font-weight:500;white-space:nowrap}
-    .indesc{font-size:7.5px;color:var(--tdim);opacity:.58;line-height:1.35;font-style:italic}
-    .iv{font-family:var(--mono);font-size:10px;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-top:1px}
-    .is{display:flex;align-items:center;gap:3px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;padding-top:1px}
+    .in{font-size:10px;color:var(--tdim);font-weight:500;cursor:help;border-bottom:1px dashed rgba(74,104,128,.4)}
+    .iv{font-family:var(--mono);font-size:10px;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .is{display:flex;align-items:center;gap:3px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
     .id{width:5px;height:5px;border-radius:50%;flex-shrink:0}
     .is.buy{color:var(--grn)} .is.buy .id{background:var(--grn)}
     .is.sell{color:var(--red)} .is.sell .id{background:var(--red)}
     .is.neu{color:var(--yel)} .is.neu .id{background:var(--yel)}
 
     /* ── SCORE BAR ── */
-    .ssec{padding:7px 13px 11px;border-top:1px solid var(--bdr2)}
+    .ssec{padding:7px 13px 10px;border-top:1px solid var(--bdr2)}
     .shdr{display:flex;justify-content:space-between;margin-bottom:4px}
     .slb{font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--tdim)}
     .svl{font-family:var(--mono);font-size:10px;color:var(--txt)}
     .strk{height:3px;background:var(--bdr);border-radius:2px;overflow:hidden}
     .sfil{height:100%;border-radius:2px;transition:width .4s ease}
-    .sdesc{font-size:7.5px;color:var(--tdim);opacity:.58;font-style:italic;margin-top:3px;display:block}
+    .sdesc{font-size:7.5px;color:var(--tdim);opacity:.6;font-style:italic;margin-top:3px;display:block}
 
     /* ── FUNDAMENTALS SECTION ── */
     .fund-sec{display:none;border-top:1px solid var(--bdr2);padding:10px 13px}
-    .ftitle{font-size:8px;text-transform:uppercase;letter-spacing:.1em;color:var(--tdim);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+    .ftitle{font-size:8px;text-transform:uppercase;letter-spacing:.1em;color:var(--tdim);margin-bottom:8px}
     .fund-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px 10px}
-    .fi{display:flex;flex-direction:column;gap:1px;padding:4px 6px;background:var(--sur2);border-radius:4px;border:1px solid var(--bdr2)}
-    .fk{font-size:8px;text-transform:uppercase;letter-spacing:.06em;color:var(--tdim)}
-    .fdesc{font-size:7px;color:var(--tdim);opacity:.55;font-style:italic;line-height:1.3;margin-top:1px}
-    .fv{font-family:var(--mono);font-size:11px;color:var(--tbri)}
+    .fi{display:flex;flex-direction:column;gap:2px;padding:4px 6px;background:var(--sur2);border-radius:4px;border:1px solid var(--bdr2)}
+    .fk{font-size:8px;text-transform:uppercase;letter-spacing:.06em;color:var(--tdim);cursor:help;border-bottom:1px dashed rgba(74,104,128,.4);padding-bottom:1px;display:inline-block}
+    .fv{font-family:var(--mono);font-size:11px;color:var(--tbri);margin-top:1px}
     .fv.pos{color:var(--grn)} .fv.neg{color:var(--red)} .fv.neu{color:var(--yel)}
     .fempty{font-size:10px;color:var(--tdim);text-align:center;padding:10px;font-style:italic}
     .fgrp{font-size:8px;text-transform:uppercase;letter-spacing:.08em;color:var(--tdim);grid-column:1/-1;margin-top:4px;padding-bottom:2px;border-bottom:1px solid var(--bdr2)}
     .fund-grid .fgrp:first-child{margin-top:0}
-    .fng-bar{height:8px;border-radius:4px;background:linear-gradient(90deg,#00e676,#ffcc44,#ff3355);position:relative;margin-top:4px;overflow:visible}
+    .fng-bar{height:8px;border-radius:4px;background:linear-gradient(90deg,#00e676,#ffcc44,#ff3355);position:relative;margin-top:6px;overflow:visible}
     .fng-needle{position:absolute;top:-3px;width:2px;height:14px;background:var(--tbri);border-radius:1px;transform:translateX(-50%)}
+
+    /* ── DELETE BUTTON ── */
+    .delbtn{background:rgba(255,51,85,.08);border:1px solid rgba(255,51,85,.25);color:var(--red);padding:3px 8px;border-radius:4px;font-size:9px;font-weight:700;cursor:pointer;transition:all .15s;flex-shrink:0;font-family:var(--font)}
+    .delbtn:hover{background:rgba(255,51,85,.18);border-color:var(--red)}
+
+    /* ── COMPARISONS PANEL ── */
+    .comp-form{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--r);padding:14px 16px;margin-bottom:16px;display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+    .cfld{display:flex;flex-direction:column;gap:4px;flex:1;min-width:130px}
+    .cfld label{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--tdim)}
+    .cfld select,.cfld input{background:var(--sur2);border:1px solid var(--bdr);color:var(--tbri);padding:6px 9px;border-radius:var(--rsm);font-size:11px;font-family:var(--font);cursor:pointer;outline:none}
+    .cfld select:focus,.cfld input:focus{border-color:var(--acc)}
+    .cfld select option{background:var(--sur2)}
+    .addcbtn{background:var(--adim);border:1px solid var(--acc);color:var(--acc);padding:7px 14px;border-radius:var(--rsm);font-size:11px;font-weight:600;font-family:var(--font);cursor:pointer;transition:all .15s;white-space:nowrap;align-self:flex-end}
+    .addcbtn:hover{background:var(--acc);color:#000}
+    .comp-card{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--r);overflow:hidden}
+    .comp-hdr{padding:11px 13px 9px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--bdr2)}
+    .comp-title{font-size:13px;font-weight:600;color:var(--tbri)}
+    .comp-sub{font-size:9px;color:var(--tdim);font-family:var(--mono);margin-top:1px}
+    .comp-body{padding:10px 13px}
+    .comp-legend{display:flex;gap:14px;margin-bottom:8px;flex-wrap:wrap}
+    .cl-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--txt)}
+    .cl-dot{width:12px;height:3px;border-radius:2px;flex-shrink:0}
+    .comp-perf{display:flex;gap:14px;margin-top:8px;flex-wrap:wrap;border-top:1px solid var(--bdr2);padding-top:7px}
+    .cperf-item{display:flex;flex-direction:column;gap:1px}
+    .cperf-lbl{font-size:8px;color:var(--tdim);text-transform:uppercase;letter-spacing:.06em}
+    .cperf-val{font-family:var(--mono);font-size:12px;font-weight:600}
+    .cpbrow{display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap}
+    .comp-empty{text-align:center;padding:40px 20px;color:var(--tdim);font-size:12px;grid-column:1/-1}
+    .comp-empty span{font-size:28px;display:block;margin-bottom:8px}
+
+    /* ── CUSTOM ASSETS PANEL ── */
+    .isin-form{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--r);padding:14px 16px;margin-bottom:16px}
+    .isin-row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
+    .isin-row .cfld{max-width:280px}
+    .isin-row .cfld input{font-family:var(--mono);letter-spacing:.05em;text-transform:uppercase}
+    .isin-row .cfld input::placeholder{text-transform:none;letter-spacing:0;opacity:.5}
+    .sbtn{background:var(--sur2);border:1px solid var(--bdr);color:var(--acc);padding:7px 14px;border-radius:var(--rsm);font-size:11px;font-weight:600;font-family:var(--font);cursor:pointer;transition:all .15s}
+    .sbtn:hover{background:var(--adim);border-color:var(--acc)}
+    .sbtn:disabled{opacity:.4;cursor:not-allowed}
+    .isin-status{font-size:10px;color:var(--tdim);margin-top:8px}
+    .isin-results{display:flex;flex-direction:column;gap:4px;margin-top:8px}
+    .ires{background:var(--sur2);border:1px solid var(--bdr);border-radius:var(--rsm);padding:7px 10px;cursor:pointer;font-size:11px;color:var(--txt);transition:all .15s}
+    .ires:hover{border-color:var(--acc);background:var(--adim);color:var(--tbri)}
+    .ires strong{color:var(--acc);font-family:var(--mono)}
+    .ires small{color:var(--tdim);font-size:9px}
+    .custom-empty{text-align:center;padding:40px 20px;color:var(--tdim);font-size:12px}
+    .custom-empty span{font-size:28px;display:block;margin-bottom:8px}
+
+    /* ── GLOBAL TOOLTIP ── */
+    #gtt{position:fixed;z-index:9999;background:#030b16;border:1px solid #2a4a6a;color:#c0d4e8;font-size:10px;line-height:1.5;padding:7px 10px;border-radius:7px;max-width:240px;box-shadow:0 6px 24px rgba(0,0,0,.85);pointer-events:none;font-family:'Space Grotesk',system-ui,sans-serif;white-space:normal;transition:opacity .1s}
 
     /* ── SKELETON ── */
     .skel{background:linear-gradient(90deg,var(--sur) 25%,var(--sur2) 50%,var(--sur) 75%);background-size:200% 100%;animation:shim 1.4s infinite;border-radius:4px}
@@ -161,10 +209,14 @@
       .hdr,.sbar,.tabs,.content{padding-left:13px;padding-right:13px}
       .hm:nth-child(1),.hm:nth-child(2){display:none}
       .grid{grid-template-columns:1fr} .grid.solo{grid-template-columns:1fr}
+      .comp-form{flex-direction:column}
     }
   </style>
 </head>
 <body>
+
+<!-- GLOBAL TOOLTIP -->
+<div id="gtt" hidden></div>
 
 <!-- HEADER -->
 <header class="hdr">
@@ -173,7 +225,7 @@
       <div class="b-icon">TA</div>
       <div>
         <div class="b-title">Technical Analysis Agent</div>
-        <div class="b-sub">Autonomous Monitor · RSI · MACD · Bollinger · SMA · EMA · Fundamentals · Auto-refresh 30s</div>
+        <div class="b-sub">RSI · MACD · Bollinger · SMA · EMA · Fundamentals · Comparisons · ISIN Watchlist</div>
       </div>
     </div>
     <div class="hdr-r">
@@ -203,6 +255,8 @@
   <button class="tab"        id="tab-as"     onclick="switchTab('as')">     🌏 Asia <span class="tcnt">3</span></button>
   <button class="tab"        id="tab-crypto" onclick="switchTab('crypto')"> ₿ Bitcoin <span class="tcnt">1</span></button>
   <button class="tab"        id="tab-gold"   onclick="switchTab('gold')">   🥇 Gold <span class="tcnt">1</span></button>
+  <button class="tab"        id="tab-comp"   onclick="switchTab('comp')">   ⚡ Comparisons <span class="tcnt" id="compCnt">0</span></button>
+  <button class="tab"        id="tab-custom" onclick="switchTab('custom')"> ★ Custom <span class="tcnt" id="customCnt">0</span></button>
 </nav>
 
 <!-- PANELS -->
@@ -212,6 +266,54 @@
   <div class="panel"        id="panel-as">    <div class="grid"      id="grid-as"></div></div>
   <div class="panel"        id="panel-crypto"><div class="grid solo"  id="grid-crypto"></div></div>
   <div class="panel"        id="panel-gold">  <div class="grid solo"  id="grid-gold"></div></div>
+
+  <!-- COMPARISONS PANEL -->
+  <div class="panel" id="panel-comp">
+    <div class="comp-form">
+      <div class="cfld">
+        <label>Asset A</label>
+        <select id="compA"></select>
+      </div>
+      <div style="align-self:flex-end;padding-bottom:7px;color:var(--tdim);font-size:18px;font-weight:300">vs</div>
+      <div class="cfld">
+        <label>Asset B</label>
+        <select id="compB"></select>
+      </div>
+      <div class="cfld" style="max-width:100px">
+        <label>Period</label>
+        <select id="compPeriod">
+          <option value="1W">1 Week</option>
+          <option value="1M" selected>1 Month</option>
+          <option value="3M">3 Months</option>
+          <option value="1Y">1 Year</option>
+          <option value="5Y">5 Years</option>
+        </select>
+      </div>
+      <button class="addcbtn" onclick="addComparison()">＋ Add Comparison</button>
+    </div>
+    <div class="grid" id="grid-comp">
+      <div class="comp-empty"><span>⚡</span>No comparisons yet.<br>Select two assets above and click Add.</div>
+    </div>
+  </div>
+
+  <!-- CUSTOM ASSETS PANEL -->
+  <div class="panel" id="panel-custom">
+    <div class="isin-form">
+      <div style="font-size:11px;color:var(--tdim);margin-bottom:10px">Enter an <strong style="color:var(--acc)">ISIN code</strong> to search and add any stock, ETF, or fund to your personal watchlist.</div>
+      <div class="isin-row">
+        <div class="cfld">
+          <label>ISIN Code</label>
+          <input id="isinInput" type="text" placeholder="e.g. US0231351067" maxlength="12" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')searchIsin()">
+        </div>
+        <button class="sbtn" id="isinBtn" onclick="searchIsin()">🔍 Search</button>
+      </div>
+      <div class="isin-status" id="isinStatus"></div>
+      <div class="isin-results" id="isinResults"></div>
+    </div>
+    <div class="grid" id="grid-custom">
+      <div class="custom-empty"><span>★</span>Your watchlist is empty.<br>Search by ISIN above to add instruments.</div>
+    </div>
+  </div>
 </main>
 
 <footer>
@@ -242,57 +344,67 @@ const ASSETS = [
 ];
 const REFRESH_SEC = 30;
 const CUR_SYM = {USD:'$',EUR:'€',GBP:'£',JPY:'¥',HKD:'HK$',CNY:'¥'};
+const COMP_COLORS = [['#00d4aa','#ff9933'],['#8866ff','#ffcc44'],['#00ccff','#ff6680'],['#44ee88','#ff5522']];
 
-// Descriptions shown beneath each indicator name
+// Tooltips for technical indicators
 const IND_DESC = {
-  'RSI (14)':  'Momentum 0–100 · <30 = oversold (buy signal) · >70 = overbought (sell signal)',
-  'MACD':      'Trend momentum · Positive histogram = bullish · Negative = bearish divergence',
-  'Bollinger': 'Price vs. 20-day ±2σ bands · %B near 0% = at lower band · near 100% = upper band',
-  'SMA (20)':  '20-day simple avg · Short-term trend · Price above = bullish bias',
-  'SMA (50)':  '50-day simple avg · Medium-term trend direction and support level',
-  'SMA (200)': '200-day avg · Bull/bear market divider · Golden Cross (50>200) = strong bullish',
-  'EMA 9/21':  'Fast exponential MAs · EMA9 > EMA21 = recent bullish crossover signal',
+  'RSI (14)':  'Relative Strength Index (0–100). Measures price momentum over 14 periods. Below 30 = oversold (potential buy signal). Above 70 = overbought (potential sell signal). Mid-range (30–70) = neutral momentum.',
+  'MACD':      'Moving Average Convergence/Divergence. Compares the 12-day EMA vs 26-day EMA. A positive histogram (line above signal) = bullish momentum building. Negative = bearish divergence.',
+  'Bollinger': 'Bollinger Bands (20-day, ±2 standard deviations). %B shows where price is within the bands: near 0% = price at lower band (oversold), near 100% = upper band (overbought), ~50% = middle.',
+  'SMA (20)':  '20-Day Simple Moving Average. Short-term trend indicator. Price above the SMA = short-term bullish bias. Commonly used as a dynamic support/resistance level for swing trades.',
+  'SMA (50)':  '50-Day Simple Moving Average. Medium-term trend direction. Price above = medium-term bullish. A cross of SMA 50 above/below SMA 200 forms the Golden/Death Cross signal.',
+  'SMA (200)': '200-Day Simple Moving Average — the most-watched long-term trend filter. Price above = bull market regime. SMA50 crossing above SMA200 = Golden Cross (very bullish). Below = Death Cross.',
+  'EMA 9/21':  '9-Day vs. 21-Day Exponential Moving Averages. EMAs respond faster than SMAs because they weight recent prices more. When EMA9 > EMA21 = short-term bullish crossover signal.',
 };
 
-// Descriptions shown beneath each fundamental metric label
+// Tooltips for fundamental metrics
 const FUND_DESC = {
-  '52W Range':       'Lowest and highest price in the past 52 weeks',
-  '52W Position':    '0% = at yearly low · 100% = at yearly high · >80% = extended',
-  'Trailing P/E':    'Price ÷ last 12 months EPS · Market avg ~15–20× · Lower = cheaper',
-  'Forward P/E':     'Price ÷ next 12 months estimated EPS · Lower than trailing = growth expected',
-  'Price/Book':      'Price vs. net book value · P/B < 1 may indicate undervaluation',
-  'Market Cap':      'Total market value of all outstanding shares',
-  'EPS (TTM)':       'Earnings per share over the trailing twelve months',
-  'EPS (Fwd)':       'Consensus estimate for earnings per share next twelve months',
-  'Div. Yield':      'Annual dividend as % of price · Higher yield = more income (check sustainability)',
-  'Beta':            'Volatility vs. market · Beta > 1 = more volatile · < 1 = more stable',
-  'Avg Volume':      'Average daily shares traded · Higher = better liquidity',
-  '50-Day MA':       '50-day moving average · Medium-term support / resistance level',
-  '200-Day MA':      '200-day moving average · Key long-term support watched by institutions',
-  'Net Margin':      'Revenue % that becomes net profit · Higher is better; varies by sector',
-  'ROE':             'Return on equity · Profit vs. shareholders\' equity · >15% generally strong',
-  'Debt/Equity':     'Total debt ÷ equity · Higher = more leverage · >2× may signal elevated risk',
-  'Revenue Growth':  'Year-over-year revenue growth rate',
-  'Rank':            'Cryptocurrency rank by market capitalization (#1 = largest)',
-  '24h Volume':      'Total USD value of Bitcoin traded in the last 24 hours',
-  'Circ. Supply':    'Bitcoin currently in circulation; new supply via mining, capped at 21M',
-  'Max Supply':      'Bitcoin\'s absolute cap of 21 million BTC, enforced by protocol',
-  'All-Time High':   'Highest price Bitcoin has ever reached',
-  'From ATH':        'How far below the all-time high the current price sits',
-  '7D Change':       'Price change over the last 7 days',
-  '30D Change':      'Price change over the last 30 days',
-  'Fear & Greed':    '0 = extreme fear (historically good buy) · 100 = extreme greed (potential sell)',
+  '52W Range':      'The lowest and highest closing prices recorded over the past 52 weeks (one year). Shows the full historical price range.',
+  '52W Position':   'Where today\'s price sits within its 52-week range. 0% = at the yearly low. 100% = at the yearly high. Above 80% may indicate the asset is extended or in strong uptrend.',
+  'Trailing P/E':   'Price ÷ actual earnings per share from the last 12 months. The S&P 500 historical average is ~15–20×. Lower P/E = cheaper relative to earnings; very high = growth priced in.',
+  'Forward P/E':    'Price ÷ next 12 months\' estimated earnings. Lower than trailing P/E = analysts expect earnings to grow. A discount to trailing P/E signals expected profitability improvement.',
+  'Price/Book':     'Price relative to the company\'s net book value (assets minus liabilities per share). P/B below 1.0 may indicate undervaluation; high P/B reflects high expected future growth.',
+  'Market Cap':     'Total market value: share price × all outstanding shares. Mega-cap (>$200B), Large-cap (>$10B), Mid-cap, Small-cap. Larger = more liquid, usually less volatile.',
+  'EPS (TTM)':      'Earnings Per Share over the Trailing Twelve Months — the actual net profit generated per share of stock. Positive = profitable; negative = loss-making.',
+  'EPS (Fwd)':      'Forward Earnings Per Share — analysts\' consensus estimate for earnings over the next 12 months. Higher than TTM EPS = analysts expect profit growth.',
+  'Div. Yield':     'Annual dividend payments as a % of the current share price. A 3% yield means every $100 invested returns $3/year in dividends. Very high yields (>8%) may signal risk.',
+  'Beta':           'Measures volatility relative to the overall market. Beta=1 = moves with the market. Beta>1 = amplified moves (more volatile). Beta<1 = more stable. Negative = moves opposite to market.',
+  'Avg Volume':     'Average number of shares/contracts traded per day. Higher volume = better liquidity and more reliable price signals. Low volume = wider spreads and potential manipulation risk.',
+  '50-Day MA':      '50-day moving average price — acts as a key medium-term support (when price is above) or resistance (when price is below) level watched by many institutional investors.',
+  '200-Day MA':     '200-day moving average — the primary long-term support/resistance level. A critical dividing line between bull and bear market conditions for most professional investors.',
+  'Net Margin':     'Net profit as a % of total revenue. Shows how much of every dollar in sales becomes profit. Industry averages vary widely; higher is generally better and signals pricing power.',
+  'ROE':            'Return on Equity — net income divided by shareholders\' equity. Measures how efficiently a company uses investor capital to generate profit. Above 15% is generally considered strong.',
+  'Debt/Equity':    'Total debt divided by shareholders\' equity. Higher = more financial leverage. Above 2× may signal elevated risk in a downturn; capital-intensive industries naturally run higher.',
+  'Revenue Growth': 'Year-over-year revenue growth rate. Positive = the business is expanding its top line. Negative = contraction. A key metric for evaluating growth vs. value stocks.',
+  'Rank':           'Rank by market capitalization among all cryptocurrencies. #1 is the largest. Bitcoin has been #1 since inception — maintaining this is considered a key health indicator.',
+  '24h Volume':     'Total USD value of Bitcoin traded across all exchanges in the last 24 hours. High volume confirms price moves; low volume during a move may indicate a false breakout.',
+  'Circ. Supply':   'Number of Bitcoin currently in circulation. New BTC is created via mining at a rate that halves every ~4 years (next halving ~2028). Current supply ~19.7M of 21M max.',
+  'Max Supply':     'Bitcoin\'s absolute hard cap is 21 million BTC, enforced by the protocol code. This fixed supply — unlike fiat currencies — is Bitcoin\'s core scarcity value proposition.',
+  'All-Time High':  'The highest price Bitcoin has ever traded at. Reaching a new all-time high historically signals the start of a major bull cycle. Distance from ATH is a key sentiment indicator.',
+  'From ATH':       'How far below the all-time high the current price sits. Deep discounts (>70% below ATH) have historically offered asymmetric return potential on long time horizons.',
+  '7D Change':      'Percentage price change over the last 7 days. Short-term momentum signal. Useful for catching early trend changes or confirming ongoing momentum.',
+  '30D Change':     'Price change over the last 30 days — a medium-term momentum indicator that filters out daily noise while still capturing meaningful trend direction.',
+  'Fear & Greed':   'Composite sentiment index (0–100). 0–24 = Extreme Fear (historically a buying opportunity — others are fearful). 75–100 = Extreme Greed (market may be overheated — consider risk).',
 };
 
 // ═══════════════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════════════
 let busy=false, cdTimer=null, rfTimer=null, cdVal=REFRESH_SEC;
-const sparks={}, mainCharts={};
+const sparks={}, mainCharts={}, compCharts={};
 const dataCache={};    // id → {closes,timestamps,lastClose,changePct,cur}
 const fundCache={};    // id → items[]
 const chartCache={};   // `${id}:${period}` → {labels,values}
 const activePeriod={}; // id → period string
+
+// Persistent state
+let comparisons = loadStore('ta_comps',[]);
+let customAssets = loadStore('ta_custom',[]);
+
+function loadStore(key,def){try{return JSON.parse(localStorage.getItem(key)||'null')||def}catch{return def}}
+function saveStore(key,val){try{localStorage.setItem(key,JSON.stringify(val))}catch{}}
+
+function getAllAssets(){return[...ASSETS,...customAssets]}
 
 // ═══════════════════════════════════════════════════
 //  NETWORK
@@ -361,10 +473,7 @@ async function fetchCoinGecko(){
 
 async function fetchFundamentals(symbol){
   const url=`https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=summaryDetail,defaultKeyStatistics,financialData`;
-  try{
-    const data=await fetchJSON(url);
-    return data?.quoteSummary?.result?.[0]||null;
-  }catch{return null}
+  try{const data=await fetchJSON(url);return data?.quoteSummary?.result?.[0]||null}catch{return null}
 }
 
 async function fetchBtcFund(){
@@ -373,10 +482,7 @@ async function fetchBtcFund(){
       tryGet('https://api.coingecko.com/api/v3/coins/bitcoin?localization=false&tickers=false&market_data=true&community_data=false&developer_data=false&sparkline=false',12000),
       tryGet('https://api.alternative.me/fng/?limit=1',6000),
     ]);
-    return{
-      cg:cg.status==='fulfilled'?cg.value:null,
-      fng:fng.status==='fulfilled'?fng.value.data?.[0]:null,
-    };
+    return{cg:cg.status==='fulfilled'?cg.value:null,fng:fng.status==='fulfilled'?fng.value.data?.[0]:null};
   }catch{return{cg:null,fng:null}}
 }
 
@@ -422,7 +528,6 @@ function bollinger(closes,n=20,m=2){
 function analyze(closes,price){
   const rows=[];let sc=0;
 
-  // RSI
   const R=rsi(closes);
   if(R!=null){
     let sig,note,pts;
@@ -434,7 +539,6 @@ function analyze(closes,price){
     sc+=pts;rows.push({n:'RSI (14)',v:R.toFixed(1),sig,note});
   }
 
-  // MACD
   const M=macd(closes);
   if(M!=null){
     const bull=M.line>M.signal;
@@ -442,7 +546,6 @@ function analyze(closes,price){
     rows.push({n:'MACD',v:`Hist ${M.hist>=0?'+':''}${M.hist.toFixed(3)}`,sig:bull?'BUY':'SELL',note:bull?'Line above signal':'Line below signal'});
   }
 
-  // Bollinger
   const B=bollinger(closes);
   if(B!=null){
     const span=B.upper-B.lower,pos=span>0?(price-B.lower)/span:0.5;
@@ -453,15 +556,12 @@ function analyze(closes,price){
     sc+=pts;rows.push({n:'Bollinger',v:fmt(B.middle),sig,note});
   }
 
-  // SMA 20
   const s20=sma(closes,20);
   if(s20!=null){const ab=price>s20;const p=((price-s20)/s20*100).toFixed(1);sc+=ab?.5:-.5;rows.push({n:'SMA (20)',v:fmt(s20),sig:ab?'BUY':'SELL',note:`Price ${ab?'+':''}${p}% vs SMA`})}
 
-  // SMA 50
   const s50=sma(closes,50);
   if(s50!=null){const ab=price>s50;const p=((price-s50)/s50*100).toFixed(1);sc+=ab?1:-1;rows.push({n:'SMA (50)',v:fmt(s50),sig:ab?'BUY':'SELL',note:`Price ${ab?'+':''}${p}% vs SMA`})}
 
-  // SMA 200
   if(closes.length>=200){
     const s200=sma(closes,200),ab=price>s200,p=((price-s200)/s200*100).toFixed(1);
     sc+=ab?2:-2;rows.push({n:'SMA (200)',v:fmt(s200),sig:ab?'BUY':'SELL',note:`Price ${ab?'+':''}${p}% vs SMA`});
@@ -469,7 +569,6 @@ function analyze(closes,price){
     rows.push({n:'SMA (200)',v:'—',sig:'NEUTRAL',note:`Need ${200-closes.length} more sessions`});
   }
 
-  // EMA 9/21
   const e9=ema(closes,9),e21=ema(closes,21);
   if(e9!=null&&e21!=null){
     const ab=e9>e21,p=((e9-e21)/e21*100).toFixed(2);
@@ -502,7 +601,6 @@ function rv(obj){if(obj==null)return null;if(typeof obj==='object'&&'raw'in obj)
 function fmtDate(ts,period){
   const d=new Date(ts*1000);
   if(period==='5Y')return d.toLocaleDateString('en-US',{month:'short',year:'2-digit'});
-  if(period==='1Y')return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
   return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
 }
 function fmtTime(ts){return new Date(ts*1000).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false})}
@@ -513,51 +611,31 @@ function fmtTime(ts){return new Date(ts*1000).toLocaleTimeString('en-US',{hour:'
 function buildYahooFund(raw){
   const items=[];
   if(!raw)return items;
-  const sd=raw.summaryDetail||{};
-  const ks=raw.defaultKeyStatistics||{};
-  const fd=raw.financialData||{};
-
+  const sd=raw.summaryDetail||{},ks=raw.defaultKeyStatistics||{},fd=raw.financialData||{};
   const add=(k,v,cls='')=>{if(v!=null&&v!=='—')items.push({k,v,cls})};
 
   const hi=rv(sd.fiftyTwoWeekHigh),lo=rv(sd.fiftyTwoWeekLow);
   if(hi&&lo)add('52W Range',`${fmt(lo)} – ${fmt(hi)}`);
-
   const lc=rv(sd.regularMarketPrice)||rv(sd.previousClose);
-  if(hi&&lo&&lc){
-    const pos52=((lc-lo)/(hi-lo)*100).toFixed(0);
-    add('52W Position',pos52+'%',+pos52>80?'neg':+pos52<20?'pos':'neu');
-  }
+  if(hi&&lo&&lc){const pos52=((lc-lo)/(hi-lo)*100).toFixed(0);add('52W Position',pos52+'%',+pos52>80?'neg':+pos52<20?'pos':'neu')}
 
   const pe=rv(sd.trailingPE)||rv(ks.trailingPE);
   if(pe)add('Trailing P/E',pe.toFixed(1)+'×');
   const fpe=rv(sd.forwardPE)||rv(ks.forwardPE);
   if(fpe)add('Forward P/E',fpe.toFixed(1)+'×');
-  const pb=rv(ks.priceToBook);
-  if(pb)add('Price/Book',pb.toFixed(2)+'×');
-  const mc=rv(sd.marketCap);
-  if(mc)add('Market Cap','$'+fmtNum(mc));
-  const eps=rv(ks.trailingEps);
-  if(eps)add('EPS (TTM)',fmt(eps));
-  const feps=rv(ks.forwardEps);
-  if(feps)add('EPS (Fwd)',fmt(feps));
-  const dy=rv(sd.dividendYield);
-  if(dy)add('Div. Yield',fmtPct(dy*100,2));
-  const beta=rv(ks.beta)||rv(sd.beta);
-  if(beta)add('Beta',beta.toFixed(2));
-  const avgvol=rv(sd.averageVolume)||rv(sd.averageVolume10days);
-  if(avgvol)add('Avg Volume',fmtNum(avgvol));
-  const ma50=rv(sd.fiftyDayAverage);
-  if(ma50)add('50-Day MA',fmt(ma50));
-  const ma200=rv(sd.twoHundredDayAverage);
-  if(ma200)add('200-Day MA',fmt(ma200));
-  const pm=rv(fd.profitMargins);
-  if(pm)add('Net Margin',fmtPct(pm*100,1),pm>0?'pos':'neg');
-  const roe=rv(fd.returnOnEquity);
-  if(roe)add('ROE',fmtPct(roe*100,1),roe>0?'pos':'neg');
-  const de=rv(fd.debtToEquity);
-  if(de)add('Debt/Equity',de.toFixed(2)+'×',de>1?'neg':'pos');
-  const rg=rv(fd.revenueGrowth);
-  if(rg)add('Revenue Growth',fmtPct(rg*100,1),rg>0?'pos':'neg');
+  const pb=rv(ks.priceToBook);if(pb)add('Price/Book',pb.toFixed(2)+'×');
+  const mc=rv(sd.marketCap);if(mc)add('Market Cap','$'+fmtNum(mc));
+  const eps=rv(ks.trailingEps);if(eps)add('EPS (TTM)',fmt(eps));
+  const feps=rv(ks.forwardEps);if(feps)add('EPS (Fwd)',fmt(feps));
+  const dy=rv(sd.dividendYield);if(dy)add('Div. Yield',fmtPct(dy*100,2));
+  const beta=rv(ks.beta)||rv(sd.beta);if(beta)add('Beta',beta.toFixed(2));
+  const avgvol=rv(sd.averageVolume)||rv(sd.averageVolume10days);if(avgvol)add('Avg Volume',fmtNum(avgvol));
+  const ma50=rv(sd.fiftyDayAverage);if(ma50)add('50-Day MA',fmt(ma50));
+  const ma200=rv(sd.twoHundredDayAverage);if(ma200)add('200-Day MA',fmt(ma200));
+  const pm=rv(fd.profitMargins);if(pm)add('Net Margin',fmtPct(pm*100,1),pm>0?'pos':'neg');
+  const roe=rv(fd.returnOnEquity);if(roe)add('ROE',fmtPct(roe*100,1),roe>0?'pos':'neg');
+  const de=rv(fd.debtToEquity);if(de)add('Debt/Equity',de.toFixed(2)+'×',de>1?'neg':'pos');
+  const rg=rv(fd.revenueGrowth);if(rg)add('Revenue Growth',fmtPct(rg*100,1),rg>0?'pos':'neg');
   return items;
 }
 
@@ -573,14 +651,10 @@ function buildBtcFund(cg,fng){
   add('24h Volume','$'+fmtNum(m.total_volume?.usd));
   add('Circ. Supply',fmtNum(m.circulating_supply)+' BTC');
   add('Max Supply','21,000,000 BTC');
-  const ath=m.ath?.usd;
-  if(ath)add('All-Time High','$'+fmt(ath));
-  const athChg=m.ath_change_percentage?.usd;
-  if(athChg!=null)add('From ATH',fmtPct(athChg,1),athChg<-50?'neg':'neu');
-  const ch7=m.price_change_percentage_7d;
-  if(ch7!=null)add('7D Change',fmtPct(ch7,2),ch7>=0?'pos':'neg');
-  const ch30=m.price_change_percentage_30d;
-  if(ch30!=null)add('30D Change',fmtPct(ch30,2),ch30>=0?'pos':'neg');
+  const ath=m.ath?.usd;if(ath)add('All-Time High','$'+fmt(ath));
+  const athChg=m.ath_change_percentage?.usd;if(athChg!=null)add('From ATH',fmtPct(athChg,1),athChg<-50?'neg':'neu');
+  const ch7=m.price_change_percentage_7d;if(ch7!=null)add('7D Change',fmtPct(ch7,2),ch7>=0?'pos':'neg');
+  const ch30=m.price_change_percentage_30d;if(ch30!=null)add('30D Change',fmtPct(ch30,2),ch30>=0?'pos':'neg');
   if(fng){
     const val=parseInt(fng.value);
     const cls=val<25?'pos':val>75?'neg':'neu';
@@ -633,10 +707,8 @@ async function getChartData(asset,period){
       labels=pairs.map(([t])=>fmtDate(t,'5Y'));
       values=pairs.map(([,c])=>c);
     } else {
-      const ago5y=Date.now()-5*365*24*3600*1000;
       const data=await tryGet('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=1825',15000);
-      const filtered=data.prices.filter(([t])=>t>=ago5y);
-      const sampled=filtered.filter((_,i)=>i%3===0);
+      const sampled=data.prices.filter((_,i)=>i%3===0);
       labels=sampled.map(([t])=>fmtDate(t/1000,'5Y'));
       values=sampled.map(([,p])=>p);
     }
@@ -681,21 +753,12 @@ function drawMainChart(id,labels,values,cur){
   const clr=isUp?'#00e676':'#ff3355';
   const mn=Math.min(...values),mx=Math.max(...values),pad=(mx-mn)*.04||1;
   mainCharts[id]=new Chart(c,{
-    type:'line',
-    plugins:[GRAD_PLUGIN],
+    type:'line',plugins:[GRAD_PLUGIN],
     data:{labels,datasets:[{data:values,borderColor:clr,borderWidth:1.8,pointRadius:0,pointHoverRadius:4,pointHoverBackgroundColor:clr,pointHoverBorderColor:'#04080f',pointHoverBorderWidth:1,tension:.1,fill:true,backgroundColor:'transparent'}]},
     options:{
       responsive:true,maintainAspectRatio:false,animation:{duration:300},
       interaction:{intersect:false,mode:'index'},
-      plugins:{
-        legend:{display:false},
-        tooltip:{
-          backgroundColor:'rgba(4,8,20,.92)',borderColor:'#1a3356',borderWidth:1,
-          titleColor:'#4a6880',bodyColor:'#e8f4ff',
-          padding:{x:10,y:6},displayColors:false,
-          callbacks:{title:items=>items[0].label,label:item=>` ${cur}${fmt(item.raw)}`}
-        }
-      },
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(4,8,20,.92)',borderColor:'#1a3356',borderWidth:1,titleColor:'#4a6880',bodyColor:'#e8f4ff',padding:{x:10,y:6},displayColors:false,callbacks:{title:items=>items[0].label,label:item=>` ${cur}${fmt(item.raw)}`}}},
       scales:{
         x:{grid:{color:'rgba(26,51,86,.2)',drawBorder:false},ticks:{color:'#4a6880',font:{size:9,family:"'JetBrains Mono',monospace"},maxRotation:0,maxTicksLimit:7,padding:2},border:{display:false}},
         y:{position:'right',min:mn-pad,max:mx+pad,grid:{color:'rgba(26,51,86,.2)',drawBorder:false},ticks:{color:'#4a6880',font:{size:9,family:"'JetBrains Mono',monospace"},callback:v=>fmt(v),maxTicksLimit:5,padding:4},border:{display:false}}
@@ -721,8 +784,7 @@ async function toggleChart(id){
   sec.style.display=open?'none':'block';
   btn.classList.toggle('open',!open);
   if(!open&&!mainCharts[id]){
-    const period=activePeriod[id]||'1M';
-    await switchPeriod(id,period);
+    await switchPeriod(id,activePeriod[id]||'1M');
   }
 }
 
@@ -730,13 +792,10 @@ async function switchPeriod(id,period){
   activePeriod[id]=period;
   const sec=document.getElementById('csec-'+id);
   if(!sec)return;
-  // Update active button
-  sec.querySelectorAll('.pb').forEach(b=>{
-    b.classList.toggle('active',b.dataset.period===period);
-  });
+  sec.querySelectorAll('.pb').forEach(b=>b.classList.toggle('active',b.dataset.period===period));
   const wrap=sec.querySelector('.cwrap');
   if(wrap)wrap.classList.add('cloading');
-  const asset=ASSETS.find(a=>a.id===id);
+  const asset=getAllAssets().find(a=>a.id===id);
   if(!asset){if(wrap)wrap.classList.remove('cloading');return}
   try{
     const{labels,values}=await getChartData(asset,period);
@@ -754,47 +813,43 @@ function toggleFund(id){
 }
 
 // ═══════════════════════════════════════════════════
-//  FUNDAMENTALS UPDATE
+//  FUNDAMENTALS
 // ═══════════════════════════════════════════════════
 async function loadFund(asset){
   const el=document.getElementById('fcnt-'+asset.id);
   if(!el)return;
-  if(fundCache[asset.id]){el.innerHTML=renderFundItems(fundCache[asset.id],asset.id);return}
-
+  if(fundCache[asset.id]){el.innerHTML=renderFundItems(fundCache[asset.id]);return}
   let items=[];
   try{
-    if(asset.type==='yahoo'){
-      const raw=await fetchFundamentals(asset.symbol);
-      items=buildYahooFund(raw);
-    } else if(asset.type==='coingecko'){
-      const{cg,fng}=await fetchBtcFund();
-      items=buildBtcFund(cg,fng);
-    }
+    if(asset.type==='yahoo'){const raw=await fetchFundamentals(asset.symbol);items=buildYahooFund(raw)}
+    else{const{cg,fng}=await fetchBtcFund();items=buildBtcFund(cg,fng)}
   }catch(e){console.warn('Fund fetch',e)}
   fundCache[asset.id]=items;
-  if(el)el.innerHTML=renderFundItems(items,asset.id);
+  if(el)el.innerHTML=renderFundItems(items);
 }
 
-function renderFundItems(items,id){
+function renderFundItems(items){
   if(!items||!items.length)return'<div class="fempty">Fundamental data not available for this instrument</div>';
   return`<div class="fund-grid">${items.map(item=>{
     if(item.isFNG){
       const pct=Math.min(100,Math.max(0,item.v));
       const desc=FUND_DESC['Fear & Greed']||'';
-      return`<div class="fi" style="grid-column:1/-1"><span class="fk">Fear &amp; Greed Gauge</span>${desc?`<span class="fdesc">${desc}</span>`:''}<div class="fng-bar" style="margin-top:5px"><div class="fng-needle" style="left:${pct}%"></div></div></div>`;
+      return`<div class="fi" style="grid-column:1/-1"><span class="fk"${desc?` data-tip="${esc(desc)}"`:''}>Fear &amp; Greed Gauge</span><div class="fng-bar"><div class="fng-needle" style="left:${pct}%"></div></div></div>`;
     }
     const desc=FUND_DESC[item.k]||'';
-    return`<div class="fi"><span class="fk">${item.k}</span>${desc?`<span class="fdesc">${desc}</span>`:''}<span class="fv ${item.cls||''}">${item.v}</span></div>`;
+    return`<div class="fi"><span class="fk"${desc?` data-tip="${esc(desc)}"`:''}">${item.k}</span><span class="fv ${item.cls||''}">${item.v}</span></div>`;
   }).join('')}</div>`;
 }
+
+function esc(s){return s.replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
 
 // ═══════════════════════════════════════════════════
 //  RENDER
 // ═══════════════════════════════════════════════════
 function sc2cls(s){return'sig-'+s.replace(' ','-')}
 
-function cardHTML(asset,d,ana){
-  const{id,name,symbol,cur}=asset;
+function cardHTML(asset,d,ana,deleteCb=''){
+  const{id,name,symbol,cur,isin}=asset;
   const{lastClose,changePct}=d;
   const{rows,score,verdict}=ana;
   const up=changePct>=0;
@@ -803,21 +858,24 @@ function cardHTML(asset,d,ana){
   const bclr=score>=2.5?'var(--grn)':score<=-2.5?'var(--red)':'var(--yel)';
   const cCls=score>=2.5?'bull-c':score<=-2.5?'bear-c':'';
   const ss=score>=0?'+':'';
+  const subLabel=isin?`${isin} · ${cur}`:symbol+' · '+cur;
 
   const iRows=rows.map(r=>{
     const sc2=r.sig==='BUY'?'buy':r.sig==='SELL'?'sell':'neu';
     const sl=r.sig==='NEUTRAL'?r.note:r.sig;
     const desc=IND_DESC[r.n]||'';
-    return`<div class="irow"><div class="inm"><span class="in">${r.n}</span>${desc?`<span class="indesc">${desc}</span>`:''}</div><span class="iv">${r.v}</span><span class="is ${sc2}"><span class="id"></span>${sl}</span></div>`;
+    return`<div class="irow"><span class="in"${desc?` data-tip="${esc(desc)}"`:''}">${r.n}</span><span class="iv">${r.v}</span><span class="is ${sc2}"><span class="id"></span>${sl}</span></div>`;
   }).join('');
 
   const periods=['1H','1W','1M','3M','1Y','5Y'];
   const pBtns=periods.map(p=>`<button class="pb${p==='1M'?' active':''}" data-period="${p}" onclick="switchPeriod('${id}','${p}')">${p}</button>`).join('');
 
+  const delBtn=deleteCb?`<button class="delbtn" onclick="${deleteCb}">✕ Remove</button>`:'';
+
   return`<div class="card ${cCls}" id="card-${id}">
     <div class="card-hdr">
-      <div><div class="cn">${name}</div><div class="cs">${symbol} · ${cur}</div></div>
-      <span class="sbadge ${sc2cls(verdict)}">${verdict}</span>
+      <div><div class="cn">${name}</div><div class="cs">${subLabel}</div></div>
+      <div style="display:flex;align-items:center;gap:7px">${delBtn}<span class="sbadge ${sc2cls(verdict)}">${verdict}</span></div>
     </div>
     <div class="prow">
       <div class="pm">
@@ -826,31 +884,25 @@ function cardHTML(asset,d,ana){
       </div>
       <div class="spkbox"><canvas id="spk-${id}" width="100" height="40"></canvas></div>
     </div>
-    <!-- CHART TOGGLE -->
-    <button class="tbtn" id="ctbtn-${id}" onclick="toggleChart('${id}')">
-      📈 Price Chart <span class="ta">▼</span>
-    </button>
+    <button class="tbtn" id="ctbtn-${id}" onclick="toggleChart('${id}')">📈 Price Chart <span class="ta">▼</span></button>
     <div class="chart-sec" id="csec-${id}">
       <div class="pbrow">${pBtns}</div>
       <div class="cwrap"><canvas id="mc-${id}"></canvas></div>
     </div>
-    <!-- TECHNICAL INDICATORS -->
     <div class="inds">
-      <div class="ititle">▸ Technical Indicators</div>
+      <div class="ititle">▸ Technical Indicators <span style="font-size:7px;color:var(--tdim);font-style:italic;font-weight:400">— hover name for explanation</span></div>
       ${iRows}
     </div>
-    <!-- SCORE BAR -->
     <div class="ssec">
       <div class="shdr"><span class="slb">Signal Strength</span><span class="svl">${ss}${score.toFixed(1)} / 9.0</span></div>
       <div class="strk"><div class="sfil" style="width:${norm}%;background:${bclr}"></div></div>
-      <span class="sdesc">Combined score from all indicators · −9 = strongest sell · 0 = neutral · +9 = strongest buy</span>
+      <span class="sdesc">Combined score of all indicators · −9 = strongest sell · 0 = neutral · +9 = strongest buy</span>
     </div>
-    <!-- FUNDAMENTAL TOGGLE -->
-    <button class="tbtn" id="ftbtn-${id}" onclick="toggleFund('${id}');loadFund(ASSETS.find(a=>a.id==='${id}'))">
+    <button class="tbtn" id="ftbtn-${id}" onclick="toggleFund('${id}');loadFund(getAllAssets().find(a=>a.id==='${id}'))">
       📊 Fundamental Analysis <span class="ta">▼</span>
     </button>
     <div class="fund-sec" id="fsec-${id}">
-      <div class="ftitle">▸ Key Fundamentals</div>
+      <div class="ftitle">▸ Key Fundamentals <span style="font-size:7px;font-style:italic;font-weight:400;color:var(--tdim)">— hover label for explanation</span></div>
       <div id="fcnt-${id}"><div class="fempty" style="display:flex;align-items:center;gap:6px"><span>⏳</span> Loading fundamentals…</div></div>
     </div>
   </div>`;
@@ -865,7 +917,6 @@ function skelHTML(name,symbol){
       <div class="skel" style="height:10px;width:75%"></div>
       <div class="skel" style="height:10px;width:62%"></div>
       <div class="skel" style="height:10px;width:80%"></div>
-      <div class="skel" style="height:10px;width:58%"></div>
     </div>
   </div>`;
 }
@@ -874,10 +925,308 @@ function errHTML(asset,msg){
   return`<div class="ecrd" id="card-${asset.id}">
     <div class="eico">⚠️</div>
     <div class="enm">${asset.name}</div>
-    <div class="emsg">${asset.symbol}</div>
+    <div class="emsg">${asset.isin||asset.symbol}</div>
     <div class="emsg" style="margin-top:7px">${msg}</div>
     <div class="emsg" style="margin-top:3px;font-size:9px">Markets may be closed · Retrying in ${REFRESH_SEC}s</div>
   </div>`;
+}
+
+// ═══════════════════════════════════════════════════
+//  GLOBAL TOOLTIP
+// ═══════════════════════════════════════════════════
+const gtt=document.getElementById('gtt');
+let _tipEl=null;
+
+document.addEventListener('mouseover',e=>{
+  const el=e.target.closest('[data-tip]');
+  if(el&&el!==_tipEl){_tipEl=el;gtt.textContent=el.dataset.tip;gtt.removeAttribute('hidden')}
+  else if(!el&&_tipEl){_tipEl=null;gtt.setAttribute('hidden','')}
+});
+document.addEventListener('mousemove',e=>{
+  if(!gtt.hasAttribute('hidden')){
+    const x=e.clientX+14,y=e.clientY+14;
+    const tw=gtt.offsetWidth||220,th=gtt.offsetHeight||60;
+    gtt.style.left=Math.max(8,(x+tw>window.innerWidth-8?e.clientX-tw-8:x))+'px';
+    gtt.style.top=Math.max(8,(y+th>window.innerHeight-8?e.clientY-th-8:y))+'px';
+  }
+});
+document.addEventListener('mouseout',e=>{
+  if(!e.relatedTarget?.closest('[data-tip]')){_tipEl=null;gtt.setAttribute('hidden','')}
+});
+
+// ═══════════════════════════════════════════════════
+//  COMPARISONS
+// ═══════════════════════════════════════════════════
+function buildCompSelects(){
+  const all=getAllAssets();
+  const opts=all.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
+  ['compA','compB'].forEach((sid,i)=>{
+    const sel=document.getElementById(sid);
+    if(!sel)return;
+    const prev=sel.value;
+    sel.innerHTML=opts;
+    // Default A = sp500, B = btc; or restore previous
+    const def=i===0?'sp500':'btc';
+    sel.value=all.find(a=>a.id===prev)?prev:def;
+  });
+}
+
+async function addComparison(){
+  const aId=document.getElementById('compA').value;
+  const bId=document.getElementById('compB').value;
+  const period=document.getElementById('compPeriod').value;
+  if(aId===bId){alert('Please select two different assets.');return}
+  const aAsset=getAllAssets().find(a=>a.id===aId);
+  const bAsset=getAllAssets().find(a=>a.id===bId);
+  if(!aAsset||!bAsset)return;
+  const id='comp_'+Date.now();
+  const comp={id,a:aId,b:bId,period,aName:aAsset.name,bName:bAsset.name};
+  comparisons.push(comp);
+  saveStore('ta_comps',comparisons);
+  updateCompCnt();
+  renderCompCard(comp);
+  await loadCompChart(comp);
+}
+
+function removeComparison(id){
+  if(compCharts[id]){try{compCharts[id].destroy()}catch{};delete compCharts[id]}
+  comparisons=comparisons.filter(c=>c.id!==id);
+  saveStore('ta_comps',comparisons);
+  const el=document.getElementById('comp-'+id);if(el)el.remove();
+  updateCompCnt();
+  const grid=document.getElementById('grid-comp');
+  if(!grid.hasChildNodes()||!grid.querySelector('.comp-card')){
+    grid.innerHTML='<div class="comp-empty"><span>⚡</span>No comparisons yet.<br>Select two assets above and click Add.</div>';
+  }
+}
+
+async function changeCompPeriod(id,period){
+  comparisons=comparisons.map(c=>c.id===id?{...c,period}:c);
+  saveStore('ta_comps',comparisons);
+  const comp=comparisons.find(c=>c.id===id);
+  if(!comp)return;
+  const sec=document.getElementById('comp-'+id);
+  if(sec)sec.querySelectorAll('.cpb').forEach(b=>b.classList.toggle('active',b.dataset.period===period));
+  // Invalidate cache for this comparison
+  delete chartCache[`${comp.a}:${period}`];
+  delete chartCache[`${comp.b}:${period}`];
+  await loadCompChart(comp);
+}
+
+function renderCompCard(comp){
+  const grid=document.getElementById('grid-comp');
+  // Remove empty state
+  const empty=grid.querySelector('.comp-empty');if(empty)empty.remove();
+  const colorIdx=comparisons.findIndex(c=>c.id===comp.id)%COMP_COLORS.length;
+  const [clrA,clrB]=COMP_COLORS[colorIdx];
+  const periods=['1W','1M','3M','1Y','5Y'];
+  const pBtns=periods.map(p=>`<button class="pb cpb${p===comp.period?' active':''}" data-period="${p}" onclick="changeCompPeriod('${comp.id}','${p}')">${p}</button>`).join('');
+  const html=`<div class="comp-card" id="comp-${comp.id}">
+    <div class="comp-hdr">
+      <div>
+        <div class="comp-title">${comp.aName} <span style="color:var(--tdim);font-weight:400">vs</span> ${comp.bName}</div>
+        <div class="comp-sub">Normalized to 100 at period start — relative performance</div>
+      </div>
+      <button class="delbtn" onclick="removeComparison('${comp.id}')">✕ Remove</button>
+    </div>
+    <div class="comp-body">
+      <div class="comp-legend">
+        <div class="cl-item"><div class="cl-dot" style="background:${clrA}"></div>${comp.aName}</div>
+        <div class="cl-item"><div class="cl-dot" style="background:${clrB}"></div>${comp.bName}</div>
+      </div>
+      <div class="pbrow">${pBtns}</div>
+      <div class="cwrap cloading"><canvas id="compc-${comp.id}"></canvas></div>
+      <div class="comp-perf" id="compperf-${comp.id}"></div>
+    </div>
+  </div>`;
+  grid.insertAdjacentHTML('beforeend',html);
+}
+
+async function ensureAssetData(asset){
+  if(dataCache[asset.id])return;
+  if(asset.type==='yahoo')dataCache[asset.id]=await fetchYahoo(asset.symbol);
+  else dataCache[asset.id]=await fetchCoinGecko();
+}
+
+async function loadCompChart(comp){
+  const{id,a,b,period,aName,bName}=comp;
+  const aAsset=getAllAssets().find(x=>x.id===a);
+  const bAsset=getAllAssets().find(x=>x.id===b);
+  const el=document.getElementById('compc-'+id);
+  if(!el||!aAsset||!bAsset)return;
+
+  const wrap=el.closest('.cwrap');
+  if(wrap)wrap.classList.add('cloading');
+
+  try{
+    await Promise.all([ensureAssetData(aAsset),ensureAssetData(bAsset)]);
+    const [dataA,dataB]=await Promise.all([
+      getChartData(aAsset,period),
+      getChartData(bAsset,period),
+    ]);
+    const n=Math.min(dataA.values.length,dataB.values.length);
+    if(n<2)throw new Error('Insufficient data');
+    const vA=dataA.values.slice(-n),vB=dataB.values.slice(-n);
+    const labels=dataA.labels.slice(-n);
+    const base0A=vA[0]||1,base0B=vB[0]||1;
+    const normA=vA.map(v=>(v/base0A)*100);
+    const normB=vB.map(v=>(v/base0B)*100);
+
+    const colorIdx=comparisons.findIndex(c=>c.id===id)%COMP_COLORS.length;
+    const [clrA,clrB]=COMP_COLORS[colorIdx];
+
+    if(compCharts[id]){try{compCharts[id].destroy()}catch{}}
+    compCharts[id]=new Chart(el,{
+      type:'line',
+      data:{labels,datasets:[
+        {label:aName,data:normA,borderColor:clrA,borderWidth:1.8,pointRadius:0,pointHoverRadius:3,tension:.1,fill:false},
+        {label:bName,data:normB,borderColor:clrB,borderWidth:1.8,pointRadius:0,pointHoverRadius:3,tension:.1,fill:false},
+      ]},
+      options:{
+        responsive:true,maintainAspectRatio:false,animation:{duration:300},
+        interaction:{intersect:false,mode:'index'},
+        plugins:{
+          legend:{display:false},
+          tooltip:{backgroundColor:'rgba(4,8,20,.92)',borderColor:'#1a3356',borderWidth:1,titleColor:'#4a6880',bodyColor:'#e8f4ff',padding:{x:10,y:6},usePointStyle:true,callbacks:{label:item=>`${item.dataset.label}: ${item.raw.toFixed(1)} (${item.raw>=100?'+':''}${(item.raw-100).toFixed(1)}%)`}}
+        },
+        scales:{
+          x:{grid:{color:'rgba(26,51,86,.2)',drawBorder:false},ticks:{color:'#4a6880',font:{size:9},maxTicksLimit:7,maxRotation:0},border:{display:false}},
+          y:{position:'right',grid:{color:'rgba(26,51,86,.2)',drawBorder:false},ticks:{color:'#4a6880',font:{size:9},callback:v=>v.toFixed(0),maxTicksLimit:5},border:{display:false}}
+        }
+      }
+    });
+
+    // Update perf stats
+    const perfEl=document.getElementById('compperf-'+id);
+    if(perfEl){
+      const pA=(normA.at(-1)-100).toFixed(2);
+      const pB=(normB.at(-1)-100).toFixed(2);
+      const clA=+pA>=0?'pos':'neg';const clB=+pB>=0?'pos':'neg';
+      perfEl.innerHTML=`
+        <div class="cperf-item"><span class="cperf-lbl" style="color:${clrA}">${aName}</span><span class="cperf-val fv ${clA}">${+pA>=0?'+':''}${pA}%</span></div>
+        <div class="cperf-item"><span class="cperf-lbl" style="color:${clrB}">${bName}</span><span class="cperf-val fv ${clB}">${+pB>=0?'+':''}${pB}%</span></div>
+        <div class="cperf-item"><span class="cperf-lbl" style="color:var(--tdim)">Spread</span><span class="cperf-val fv ${+pA>+pB?'pos':'neg'}">${(+pA - +pB).toFixed(2)}%</span></div>`;
+    }
+  }catch(e){
+    console.warn('Comp chart error',id,e);
+    if(el.parentElement)el.parentElement.innerHTML=`<div class="fempty">Chart unavailable: ${e.message}</div>`;
+  }
+  if(wrap)wrap.classList.remove('cloading');
+}
+
+function renderAllComparisons(){
+  const grid=document.getElementById('grid-comp');
+  grid.innerHTML=comparisons.length?'':'<div class="comp-empty"><span>⚡</span>No comparisons yet.<br>Select two assets above and click Add.</div>';
+  updateCompCnt();
+  if(comparisons.length){
+    comparisons.forEach(c=>renderCompCard(c));
+    comparisons.forEach(c=>loadCompChart(c).catch(()=>{}));
+  }
+}
+
+function updateCompCnt(){
+  const el=document.getElementById('compCnt');if(el)el.textContent=comparisons.length;
+}
+
+// ═══════════════════════════════════════════════════
+//  CUSTOM ASSETS (ISIN WATCHLIST)
+// ═══════════════════════════════════════════════════
+async function searchIsin(){
+  const raw=document.getElementById('isinInput').value.trim().toUpperCase();
+  if(raw.length<6){document.getElementById('isinStatus').textContent='Please enter a valid ISIN (minimum 6 characters).';return}
+  const btn=document.getElementById('isinBtn');
+  btn.disabled=true;btn.textContent='Searching…';
+  document.getElementById('isinStatus').textContent='';
+  document.getElementById('isinResults').innerHTML='';
+  try{
+    const url=`https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(raw)}&quotesCount=6&newsCount=0&enableFuzzyQuery=false`;
+    const data=await fetchJSON(url);
+    const quotes=(data?.quotes||[]).filter(q=>q.symbol&&q.quoteType&&q.quoteType!=='OPTION');
+    if(!quotes.length){document.getElementById('isinStatus').textContent='No results found. Try the ticker symbol directly (e.g. AAPL, MSFT).';return}
+    document.getElementById('isinStatus').textContent='Select the correct instrument:';
+    document.getElementById('isinResults').innerHTML=quotes.slice(0,5).map(q=>
+      `<div class="ires" onclick="addCustomAsset('${q.symbol.replace(/'/g,'\\\'').replace(/"/g,'&quot;')}','${(q.shortname||q.longname||q.symbol).replace(/'/g,'\\\'').replace(/"/g,'&quot;')}','${raw}')">
+        <strong>${q.symbol}</strong> — ${q.shortname||q.longname||'—'} <small>${q.exchange||''} · ${q.quoteType||''}</small>
+      </div>`
+    ).join('');
+  }catch(e){
+    document.getElementById('isinStatus').textContent='Search failed: '+e.message+'. Try again or enter the ticker directly.';
+  }
+  btn.disabled=false;btn.textContent='🔍 Search';
+}
+
+function addCustomAsset(symbol,name,isin){
+  if(customAssets.find(a=>a.symbol===symbol)){
+    document.getElementById('isinStatus').textContent='Already in your watchlist: '+name;
+    document.getElementById('isinResults').innerHTML='';
+    return;
+  }
+  const id='custom_'+Date.now();
+  const asset={id,isin,symbol,name,region:'custom',type:'yahoo',cur:'USD'};
+  customAssets.push(asset);
+  saveStore('ta_custom',customAssets);
+  document.getElementById('isinInput').value='';
+  document.getElementById('isinResults').innerHTML='';
+  document.getElementById('isinStatus').textContent='';
+  updateCustomCnt();
+  buildCompSelects();
+  renderCustomGrid();
+  loadCustomAsset(asset);
+}
+
+function removeCustomAsset(id){
+  customAssets=customAssets.filter(a=>a.id!==id);
+  saveStore('ta_custom',customAssets);
+  delete dataCache[id];delete fundCache[id];
+  Object.keys(chartCache).forEach(k=>{if(k.startsWith(id+':'))delete chartCache[k]});
+  const el=document.getElementById('card-'+id);if(el)el.remove();
+  updateCustomCnt();
+  buildCompSelects();
+  const grid=document.getElementById('grid-custom');
+  if(!grid.querySelector('.card')&&!grid.querySelector('.ecrd')){
+    grid.innerHTML='<div class="custom-empty"><span>★</span>Your watchlist is empty.<br>Search by ISIN above to add instruments.</div>';
+  }
+}
+
+function renderCustomGrid(){
+  const grid=document.getElementById('grid-custom');
+  const empty=grid.querySelector('.custom-empty');if(empty)empty.remove();
+  if(!customAssets.length){
+    grid.innerHTML='<div class="custom-empty"><span>★</span>Your watchlist is empty.<br>Search by ISIN above to add instruments.</div>';
+    return;
+  }
+  customAssets.forEach(asset=>{
+    if(!document.getElementById('card-'+asset.id)){
+      const div=document.createElement('div');
+      div.innerHTML=skelHTML(asset.name,asset.isin||asset.symbol);
+      if(div.firstChild)div.firstChild.id='card-'+asset.id;
+      grid.appendChild(div.firstChild||div);
+    }
+  });
+}
+
+async function loadCustomAsset(asset){
+  try{
+    let d;
+    if(asset.type==='yahoo')d=await fetchYahoo(asset.symbol);
+    else d=await fetchCoinGecko();
+    dataCache[asset.id]=d;
+    // Detect currency from data
+    if(d.cur&&d.cur!=='USD')asset.cur=d.cur;
+    const ana=analyze(d.closes,d.lastClose);
+    const html=cardHTML(asset,d,ana,`removeCustomAsset('${asset.id}')`);
+    const existing=document.getElementById('card-'+asset.id);
+    if(existing)existing.outerHTML=html;
+    requestAnimationFrame(()=>drawSpark(asset.id,d.closes));
+    loadFund(asset).catch(()=>{});
+  }catch(e){
+    const existing=document.getElementById('card-'+asset.id);
+    if(existing)existing.outerHTML=errHTML(asset,e.message||'Fetch failed');
+  }
+}
+
+function updateCustomCnt(){
+  const el=document.getElementById('customCnt');if(el)el.textContent=customAssets.length;
 }
 
 // ═══════════════════════════════════════════════════
@@ -899,7 +1248,6 @@ async function fetchAll(){
   if(busy)return;
   busy=true;setStatus('upd');
 
-  // Seed grids with skeletons
   ['us','eu','as','crypto','gold'].forEach(r=>{
     const g=document.getElementById('grid-'+r);
     if(!g.hasChildNodes())g.innerHTML=ASSETS.filter(a=>a.region===r).map(a=>skelHTML(a.name,a.symbol)).join('');
@@ -922,7 +1270,6 @@ async function fetchAll(){
     const regionAssets=ASSETS.filter(a=>a.region===asset.region);
     const idx=regionAssets.findIndex(a=>a.id===asset.id);
     const existing=grid.children[idx];
-
     let html;
     if(!ok){html=errHTML(asset,err);neut++}
     else{
@@ -932,16 +1279,11 @@ async function fetchAll(){
       else neut++;
       html=cardHTML(asset,d,ana);
     }
-
     if(existing)existing.outerHTML=html;
     else grid.insertAdjacentHTML('beforeend',html);
-
     if(ok){
-      const dd=d||dataCache[asset.id];
-      requestAnimationFrame(()=>drawSpark(asset.id,dd.closes));
-      // Invalidate chart cache for current period so it redraws on next open
+      requestAnimationFrame(()=>drawSpark(asset.id,d.closes));
       delete chartCache[`${asset.id}:${activePeriod[asset.id]||'1M'}`];
-      // Reload chart if currently open
       const csec=document.getElementById('csec-'+asset.id);
       if(csec&&csec.style.display==='block'){
         setTimeout(()=>switchPeriod(asset.id,activePeriod[asset.id]||'1M'),200);
@@ -949,7 +1291,7 @@ async function fetchAll(){
     }
   }
 
-  // Summary
+  // Summary bar
   document.getElementById('bullCnt').textContent=bull;
   document.getElementById('neutCnt').textContent=neut;
   document.getElementById('bearCnt').textContent=bear;
@@ -966,7 +1308,10 @@ async function fetchAll(){
   document.getElementById('lastUpdate').textContent=new Date().toLocaleTimeString();
   setStatus('live');busy=false;
 
-  // Fire fundamentals in background (non-blocking)
+  // Refresh custom assets in background
+  customAssets.forEach(asset=>loadCustomAsset(asset).catch(()=>{}));
+
+  // Background fundamentals for built-in assets
   for(const{asset,ok}of results){
     if(ok&&!fundCache[asset.id])loadFund(asset).catch(()=>{});
   }
@@ -987,7 +1332,16 @@ setInterval(()=>{document.getElementById('clock').textContent=new Date().toLocal
 // ═══════════════════════════════════════════════════
 //  BOOT
 // ═══════════════════════════════════════════════════
-(async()=>{startCD();await fetchAll();schedNext()})();
+(async()=>{
+  buildCompSelects();
+  renderAllComparisons();
+  renderCustomGrid();
+  updateCustomCnt();
+  customAssets.forEach(a=>loadCustomAsset(a).catch(()=>{}));
+  startCD();
+  await fetchAll();
+  schedNext();
+})();
 </script>
 </body>
 </html>
