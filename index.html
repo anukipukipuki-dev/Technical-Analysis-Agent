@@ -101,7 +101,7 @@
     .pb{padding:2px 8px;border-radius:3px;font-size:9px;font-weight:600;font-family:var(--mono);border:1px solid var(--bdr);background:transparent;color:var(--tdim);cursor:pointer;transition:all .15s}
     .pb:hover{color:var(--txt);border-color:var(--tdim)}
     .pb.active{background:var(--adim);border-color:var(--acc);color:var(--acc)}
-    .cwrap{position:relative;height:200px}
+    .cwrap{position:relative;height:240px}
     .cwrap.cloading::after{content:'Loading…';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--tdim);background:rgba(4,8,15,.6);border-radius:4px}
 
     /* ── INDICATORS ── */
@@ -441,34 +441,44 @@ async function fetchYahoo(symbol){
   const data=await fetchJSON(url);
   const res=data?.chart?.result?.[0];
   if(!res)throw new Error('No chart data');
-  const rawC=res.indicators.quote[0].close;
+  const q=res.indicators.quote[0];
   const rawT=res.timestamp||[];
-  const pairs=rawC.map((c,i)=>[c,rawT[i]]).filter(([c])=>c!=null&&!isNaN(c));
-  const closes=pairs.map(([c])=>c);
-  const timestamps=pairs.map(([,t])=>t||0);
-  if(closes.length<20)throw new Error('Insufficient history');
+  const rows=rawT.map((t,i)=>({t,o:q.open?.[i],h:q.high?.[i],l:q.low?.[i],c:q.close?.[i]}))
+    .filter(r=>r.c!=null&&!isNaN(r.c));
+  if(rows.length<20)throw new Error('Insufficient history');
+  const closes=rows.map(r=>r.c);
+  const timestamps=rows.map(r=>r.t||0);
+  const opens=rows.map(r=>r.o??r.c);
+  const highs=rows.map(r=>r.h??r.c);
+  const lows=rows.map(r=>r.l??r.c);
   const lc=res.meta.regularMarketPrice||closes.at(-1);
   const pc=res.meta.previousClose||closes.at(-2);
-  return{closes,timestamps,lastClose:lc,changePct:pc?((lc-pc)/pc)*100:0,cur:res.meta.currency||'USD'};
+  return{closes,timestamps,opens,highs,lows,lastClose:lc,changePct:pc?((lc-pc)/pc)*100:0,cur:res.meta.currency||'USD'};
 }
 
 async function fetchCoinGecko(){
-  const [hist,cur]=await Promise.allSettled([
-    tryGet('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=365&interval=daily',12000),
+  const [ohlcRes,curRes]=await Promise.allSettled([
+    tryGet('https://api.coingecko.com/api/v3/coins/bitcoin/ohlc?vs_currency=usd&days=365',14000),
     tryGet('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true',8000),
   ]);
-  if(hist.status==='rejected')throw hist.reason;
-  const prices=hist.value.prices;
-  const closes=prices.map(([,p])=>p);
-  const timestamps=prices.map(([t])=>Math.floor(t/1000));
+  if(ohlcRes.status==='rejected')throw ohlcRes.reason;
+  const raw=ohlcRes.value; // [[ts_ms, o, h, l, c], ...]
+  const rows=raw.map(([ts,o,h,l,c])=>({t:Math.floor(ts/1000),o,h,l,c}))
+    .filter(r=>r.c!=null&&!isNaN(r.c));
+  if(!rows.length)throw new Error('No OHLC data');
+  const closes=rows.map(r=>r.c);
+  const timestamps=rows.map(r=>r.t);
+  const opens=rows.map(r=>r.o);
+  const highs=rows.map(r=>r.h);
+  const lows=rows.map(r=>r.l);
   let lc=closes.at(-1),chg=0;
-  if(cur.status==='fulfilled'){
-    lc=cur.value.bitcoin?.usd??lc;
-    chg=cur.value.bitcoin?.usd_24h_change??0;
+  if(curRes.status==='fulfilled'){
+    lc=curRes.value.bitcoin?.usd??lc;
+    chg=curRes.value.bitcoin?.usd_24h_change??0;
   } else {
     chg=closes.length>1?((closes.at(-1)-closes.at(-2))/closes.at(-2))*100:0;
   }
-  return{closes,timestamps,lastClose:lc,changePct:chg,cur:'USD'};
+  return{closes,timestamps,opens,highs,lows,lastClose:lc,changePct:chg,cur:'USD'};
 }
 
 async function fetchFundamentals(symbol){
@@ -671,7 +681,7 @@ async function getChartData(asset,period){
   const key=`${asset.id}:${period}`;
   if(chartCache[key])return chartCache[key];
 
-  let labels=[],values=[];
+  let labels=[],values=[],ohlc=[];
   const d=dataCache[asset.id];
 
   if(['1W','1M','3M','1Y'].includes(period)){
@@ -681,40 +691,57 @@ async function getChartData(asset,period){
     values=d.closes.slice(-n);
     const ts=d.timestamps?d.timestamps.slice(-n):null;
     labels=ts?ts.map(t=>fmtDate(t,period)):values.map((_,i)=>`D${i+1}`);
+    if(d.opens&&d.highs&&d.lows){
+      const opens=d.opens.slice(-n),highs=d.highs.slice(-n),lows=d.lows.slice(-n);
+      ohlc=values.map((c,i)=>({o:opens[i]??c,h:highs[i]??c,l:lows[i]??c,c}));
+    }
   } else if(period==='1H'){
     if(asset.type==='yahoo'){
       const url=`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(asset.symbol)}?range=1d&interval=5m&includePrePost=false`;
       const data=await fetchJSON(url);
       const res=data.chart.result[0];
-      const rawC=res.indicators.quote[0].close;
+      const q=res.indicators.quote[0];
       const rawT=res.timestamp||[];
-      const pairs=rawT.map((t,i)=>[t,rawC[i]]).filter(([,c])=>c!=null&&!isNaN(c));
-      labels=pairs.map(([t])=>fmtTime(t));
-      values=pairs.map(([,c])=>c);
+      const rows=rawT.map((t,i)=>({t,o:q.open?.[i],h:q.high?.[i],l:q.low?.[i],c:q.close?.[i]}))
+        .filter(r=>r.c!=null&&!isNaN(r.c));
+      labels=rows.map(r=>fmtTime(r.t));
+      values=rows.map(r=>r.c);
+      ohlc=rows.map(r=>({o:r.o??r.c,h:r.h??r.c,l:r.l??r.c,c:r.c}));
     } else {
       const data=await tryGet('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=1',12000);
       labels=data.prices.map(([t])=>fmtTime(t/1000));
       values=data.prices.map(([,p])=>p);
+      ohlc=values.map(c=>({o:c,h:c,l:c,c}));
     }
   } else if(period==='5Y'){
     if(asset.type==='yahoo'){
       const url=`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(asset.symbol)}?range=5y&interval=1wk&includePrePost=false`;
       const data=await fetchJSON(url);
       const res=data.chart.result[0];
-      const rawC=res.indicators.quote[0].close;
+      const q=res.indicators.quote[0];
       const rawT=res.timestamp||[];
-      const pairs=rawT.map((t,i)=>[t,rawC[i]]).filter(([,c])=>c!=null&&!isNaN(c));
-      labels=pairs.map(([t])=>fmtDate(t,'5Y'));
-      values=pairs.map(([,c])=>c);
+      const rows=rawT.map((t,i)=>({t,o:q.open?.[i],h:q.high?.[i],l:q.low?.[i],c:q.close?.[i]}))
+        .filter(r=>r.c!=null&&!isNaN(r.c));
+      labels=rows.map(r=>fmtDate(r.t,'5Y'));
+      values=rows.map(r=>r.c);
+      ohlc=rows.map(r=>({o:r.o??r.c,h:r.h??r.c,l:r.l??r.c,c:r.c}));
     } else {
+      // Group daily market_chart data into weekly candles
       const data=await tryGet('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=1825',15000);
-      const sampled=data.prices.filter((_,i)=>i%3===0);
-      labels=sampled.map(([t])=>fmtDate(t/1000,'5Y'));
-      values=sampled.map(([,p])=>p);
+      const buckets={};
+      data.prices.forEach(([ts,p])=>{
+        const wk=Math.floor(ts/(7*24*3600*1000));
+        if(!buckets[wk])buckets[wk]={ts,o:p,h:p,l:p,c:p};
+        else{buckets[wk].h=Math.max(buckets[wk].h,p);buckets[wk].l=Math.min(buckets[wk].l,p);buckets[wk].c=p}
+      });
+      const weekly=Object.values(buckets).sort((a,b)=>a.ts-b.ts);
+      labels=weekly.map(r=>fmtDate(Math.floor(r.ts/1000),'5Y'));
+      values=weekly.map(r=>r.c);
+      ohlc=weekly.map(r=>({o:r.o,h:r.h,l:r.l,c:r.c}));
     }
   }
 
-  const res={labels,values};
+  const res={labels,values,ohlc};
   chartCache[key]=res;
   return res;
 }
@@ -722,13 +749,55 @@ async function getChartData(asset,period){
 // ═══════════════════════════════════════════════════
 //  CHARTS
 // ═══════════════════════════════════════════════════
+// ── CANDLESTICK PLUGIN ──
+const CANDLE_PLUGIN={
+  id:'candlestick',
+  afterDatasetsDraw(chart){
+    const ohlc=chart._ohlcData;
+    if(!ohlc||!ohlc.length)return;
+    const{ctx,scales:{y:yS}}=chart;
+    const meta=chart.getDatasetMeta(0);
+    if(!meta||!meta.data.length)return;
+    meta.data.forEach((bar,i)=>{
+      if(i>=ohlc.length)return;
+      const r=ohlc[i];
+      if(!r||r.c==null)return;
+      const bull=r.c>=r.o;
+      const bodyClr=bull?'#00e676':'#ff3355';
+      const wickClr=bull?'#00a854':'#cc2244';
+      const x=bar.x;
+      const hw=Math.max(1.5,(bar.width||8)*0.44);
+      const yH=yS.getPixelForValue(r.h);
+      const yL=yS.getPixelForValue(r.l);
+      const yO=yS.getPixelForValue(r.o);
+      const yC=yS.getPixelForValue(r.c);
+      const bTop=Math.min(yO,yC);
+      const bBot=Math.max(yO,yC);
+      const bH=Math.max(1,bBot-bTop);
+      ctx.save();
+      // Upper wick
+      ctx.beginPath();ctx.strokeStyle=wickClr;ctx.lineWidth=1;
+      ctx.moveTo(x,yH);ctx.lineTo(x,bTop);ctx.stroke();
+      // Lower wick
+      ctx.beginPath();
+      ctx.moveTo(x,bBot);ctx.lineTo(x,yL);ctx.stroke();
+      // Body
+      ctx.fillStyle=bodyClr;
+      ctx.fillRect(x-hw,bTop,hw*2,bH);
+      ctx.restore();
+    });
+  }
+};
+
+// ── GRAD PLUGIN (line charts: comparison & sparkline-style) ──
 const GRAD_PLUGIN={
   id:'gradFill',
   beforeDatasetsDraw(chart){
     const{ctx,chartArea,data}=chart;
     if(!chartArea||!data.datasets[0])return;
     const ds=data.datasets[0];
-    const isUp=(ds.data.at(-1)??0)>=(ds.data[0]??0);
+    const vals=ds.data;
+    const isUp=(vals.at(-1)??0)>=(vals[0]??0);
     const g=ctx.createLinearGradient(0,chartArea.top,0,chartArea.bottom);
     if(isUp){g.addColorStop(0,'rgba(0,230,118,.25)');g.addColorStop(1,'rgba(0,230,118,0)')}
     else{g.addColorStop(0,'rgba(255,51,85,.22)');g.addColorStop(1,'rgba(255,51,85,0)')}
@@ -745,26 +814,76 @@ function drawSpark(id,closes){
   sparks[id]=new Chart(c,{type:'line',data:{labels:pts.map((_,i)=>i),datasets:[{data:pts,borderColor:up?'#00e676':'#ff3355',borderWidth:1.5,pointRadius:0,tension:.3,fill:true,backgroundColor:up?'rgba(0,230,118,.06)':'rgba(255,51,85,.06)'}]},options:{responsive:true,maintainAspectRatio:false,animation:{duration:0},plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{x:{display:false},y:{display:false,min:Math.min(...pts)*.996,max:Math.max(...pts)*1.004}}}});
 }
 
-function drawMainChart(id,labels,values,cur){
+function drawMainChart(id,labels,values,cur,ohlc){
   const c=document.getElementById('mc-'+id);
   if(!c)return;
   if(mainCharts[id]){try{mainCharts[id].destroy()}catch{}}
-  const isUp=(values.at(-1)??0)>=(values[0]??0);
-  const clr=isUp?'#00e676':'#ff3355';
-  const mn=Math.min(...values),mx=Math.max(...values),pad=(mx-mn)*.04||1;
-  mainCharts[id]=new Chart(c,{
-    type:'line',plugins:[GRAD_PLUGIN],
-    data:{labels,datasets:[{data:values,borderColor:clr,borderWidth:1.8,pointRadius:0,pointHoverRadius:4,pointHoverBackgroundColor:clr,pointHoverBorderColor:'#04080f',pointHoverBorderWidth:1,tension:.1,fill:true,backgroundColor:'transparent'}]},
+
+  // If no OHLC available, fall back to line chart
+  if(!ohlc||!ohlc.length){
+    const isUp=(values.at(-1)??0)>=(values[0]??0);
+    const clr=isUp?'#00e676':'#ff3355';
+    const mn=Math.min(...values),mx=Math.max(...values),pad=(mx-mn)*.04||1;
+    mainCharts[id]=new Chart(c,{
+      type:'line',plugins:[GRAD_PLUGIN],
+      data:{labels,datasets:[{data:values,borderColor:clr,borderWidth:1.8,pointRadius:0,pointHoverRadius:4,tension:.1,fill:true,backgroundColor:'transparent'}]},
+      options:{
+        responsive:true,maintainAspectRatio:false,animation:{duration:300},
+        interaction:{intersect:false,mode:'index'},
+        plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(4,8,20,.92)',borderColor:'#1a3356',borderWidth:1,titleColor:'#4a6880',bodyColor:'#e8f4ff',padding:{x:10,y:6},displayColors:false,callbacks:{title:i=>i[0].label,label:i=>` ${cur}${fmt(i.raw)}`}}},
+        scales:{x:{grid:{color:'rgba(26,51,86,.2)',drawBorder:false},ticks:{color:'#4a6880',font:{size:9,family:"'JetBrains Mono',monospace"},maxRotation:0,maxTicksLimit:7,padding:2},border:{display:false}},y:{position:'right',min:mn-pad,max:mx+pad,grid:{color:'rgba(26,51,86,.2)',drawBorder:false},ticks:{color:'#4a6880',font:{size:9,family:"'JetBrains Mono',monospace"},callback:v=>fmt(v),maxTicksLimit:5,padding:4},border:{display:false}}}
+      }
+    });
+    return;
+  }
+
+  // Candlestick chart via floating bar + CANDLE_PLUGIN
+  const lows=ohlc.map(r=>r.l),highs=ohlc.map(r=>r.h);
+  const mn=Math.min(...lows),mx=Math.max(...highs),pad=(mx-mn)*.025||1;
+  const floatData=ohlc.map(r=>[r.l,r.h]);
+
+  const ch=new Chart(c,{
+    type:'bar',
+    plugins:[CANDLE_PLUGIN],
+    data:{labels,datasets:[{
+      data:floatData,
+      backgroundColor:'transparent',
+      borderColor:'transparent',
+      borderWidth:0,
+      borderSkipped:false,
+    }]},
     options:{
       responsive:true,maintainAspectRatio:false,animation:{duration:300},
       interaction:{intersect:false,mode:'index'},
-      plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(4,8,20,.92)',borderColor:'#1a3356',borderWidth:1,titleColor:'#4a6880',bodyColor:'#e8f4ff',padding:{x:10,y:6},displayColors:false,callbacks:{title:items=>items[0].label,label:item=>` ${cur}${fmt(item.raw)}`}}},
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:'rgba(4,8,20,.94)',borderColor:'#1a3356',borderWidth:1,
+          titleColor:'#7a9abc',bodyColor:'#e8f4ff',padding:{x:11,y:7},displayColors:false,
+          callbacks:{
+            title:items=>items[0].label,
+            label:item=>{
+              const r=item.chart._ohlcData?.[item.dataIndex];
+              if(!r)return'';
+              const chg=r.o?((r.c-r.o)/r.o*100):0;
+              const arr=r.o!==r.c?[
+                ` O: ${cur}${fmt(r.o)}   H: ${cur}${fmt(r.h)}`,
+                ` L: ${cur}${fmt(r.l)}   C: ${cur}${fmt(r.c)}`,
+                ` ${r.c>=r.o?'▲':'▼'} ${chg>=0?'+':''}${chg.toFixed(2)}%`
+              ]:[` ${cur}${fmt(r.c)}`];
+              return arr;
+            }
+          }
+        }
+      },
       scales:{
         x:{grid:{color:'rgba(26,51,86,.2)',drawBorder:false},ticks:{color:'#4a6880',font:{size:9,family:"'JetBrains Mono',monospace"},maxRotation:0,maxTicksLimit:7,padding:2},border:{display:false}},
         y:{position:'right',min:mn-pad,max:mx+pad,grid:{color:'rgba(26,51,86,.2)',drawBorder:false},ticks:{color:'#4a6880',font:{size:9,family:"'JetBrains Mono',monospace"},callback:v=>fmt(v),maxTicksLimit:5,padding:4},border:{display:false}}
       }
     }
   });
+  ch._ohlcData=ohlc;
+  mainCharts[id]=ch;
 }
 
 // ═══════════════════════════════════════════════════
@@ -798,8 +917,8 @@ async function switchPeriod(id,period){
   const asset=getAllAssets().find(a=>a.id===id);
   if(!asset){if(wrap)wrap.classList.remove('cloading');return}
   try{
-    const{labels,values}=await getChartData(asset,period);
-    drawMainChart(id,labels,values,CUR_SYM[asset.cur]||'');
+    const{labels,values,ohlc}=await getChartData(asset,period);
+    drawMainChart(id,labels,values,CUR_SYM[asset.cur]||'',ohlc);
   }catch(e){console.warn('Chart fetch',id,period,e)}
   if(wrap)wrap.classList.remove('cloading');
 }
