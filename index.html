@@ -106,11 +106,13 @@
     /* ── INDICATORS ── */
     .inds{padding:9px 13px}
     .ititle{font-size:8px;text-transform:uppercase;letter-spacing:.1em;color:var(--tdim);margin-bottom:6px}
-    .irow{display:grid;grid-template-columns:76px 1fr auto;gap:5px;align-items:center;padding:2px 0;border-bottom:1px solid rgba(26,51,86,.3)}
+    .irow{display:grid;grid-template-columns:auto 1fr auto;gap:2px 8px;align-items:start;padding:4px 0 5px;border-bottom:1px solid rgba(26,51,86,.3)}
     .irow:last-child{border-bottom:none}
-    .in{font-size:10px;color:var(--tdim);font-weight:500}
-    .iv{font-family:var(--mono);font-size:10px;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .is{display:flex;align-items:center;gap:3px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+    .inm{display:flex;flex-direction:column;gap:1px;min-width:76px;max-width:116px}
+    .in{font-size:10px;color:var(--tdim);font-weight:500;white-space:nowrap}
+    .indesc{font-size:7.5px;color:var(--tdim);opacity:.58;line-height:1.35;font-style:italic}
+    .iv{font-family:var(--mono);font-size:10px;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-top:1px}
+    .is{display:flex;align-items:center;gap:3px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;padding-top:1px}
     .id{width:5px;height:5px;border-radius:50%;flex-shrink:0}
     .is.buy{color:var(--grn)} .is.buy .id{background:var(--grn)}
     .is.sell{color:var(--red)} .is.sell .id{background:var(--red)}
@@ -123,6 +125,7 @@
     .svl{font-family:var(--mono);font-size:10px;color:var(--txt)}
     .strk{height:3px;background:var(--bdr);border-radius:2px;overflow:hidden}
     .sfil{height:100%;border-radius:2px;transition:width .4s ease}
+    .sdesc{font-size:7.5px;color:var(--tdim);opacity:.58;font-style:italic;margin-top:3px;display:block}
 
     /* ── FUNDAMENTALS SECTION ── */
     .fund-sec{display:none;border-top:1px solid var(--bdr2);padding:10px 13px}
@@ -130,6 +133,7 @@
     .fund-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px 10px}
     .fi{display:flex;flex-direction:column;gap:1px;padding:4px 6px;background:var(--sur2);border-radius:4px;border:1px solid var(--bdr2)}
     .fk{font-size:8px;text-transform:uppercase;letter-spacing:.06em;color:var(--tdim)}
+    .fdesc{font-size:7px;color:var(--tdim);opacity:.55;font-style:italic;line-height:1.3;margin-top:1px}
     .fv{font-family:var(--mono);font-size:11px;color:var(--tbri)}
     .fv.pos{color:var(--grn)} .fv.neg{color:var(--red)} .fv.neu{color:var(--yel)}
     .fempty{font-size:10px;color:var(--tdim);text-align:center;padding:10px;font-style:italic}
@@ -238,6 +242,47 @@ const ASSETS = [
 ];
 const REFRESH_SEC = 30;
 const CUR_SYM = {USD:'$',EUR:'€',GBP:'£',JPY:'¥',HKD:'HK$',CNY:'¥'};
+
+// Descriptions shown beneath each indicator name
+const IND_DESC = {
+  'RSI (14)':  'Momentum 0–100 · <30 = oversold (buy signal) · >70 = overbought (sell signal)',
+  'MACD':      'Trend momentum · Positive histogram = bullish · Negative = bearish divergence',
+  'Bollinger': 'Price vs. 20-day ±2σ bands · %B near 0% = at lower band · near 100% = upper band',
+  'SMA (20)':  '20-day simple avg · Short-term trend · Price above = bullish bias',
+  'SMA (50)':  '50-day simple avg · Medium-term trend direction and support level',
+  'SMA (200)': '200-day avg · Bull/bear market divider · Golden Cross (50>200) = strong bullish',
+  'EMA 9/21':  'Fast exponential MAs · EMA9 > EMA21 = recent bullish crossover signal',
+};
+
+// Descriptions shown beneath each fundamental metric label
+const FUND_DESC = {
+  '52W Range':       'Lowest and highest price in the past 52 weeks',
+  '52W Position':    '0% = at yearly low · 100% = at yearly high · >80% = extended',
+  'Trailing P/E':    'Price ÷ last 12 months EPS · Market avg ~15–20× · Lower = cheaper',
+  'Forward P/E':     'Price ÷ next 12 months estimated EPS · Lower than trailing = growth expected',
+  'Price/Book':      'Price vs. net book value · P/B < 1 may indicate undervaluation',
+  'Market Cap':      'Total market value of all outstanding shares',
+  'EPS (TTM)':       'Earnings per share over the trailing twelve months',
+  'EPS (Fwd)':       'Consensus estimate for earnings per share next twelve months',
+  'Div. Yield':      'Annual dividend as % of price · Higher yield = more income (check sustainability)',
+  'Beta':            'Volatility vs. market · Beta > 1 = more volatile · < 1 = more stable',
+  'Avg Volume':      'Average daily shares traded · Higher = better liquidity',
+  '50-Day MA':       '50-day moving average · Medium-term support / resistance level',
+  '200-Day MA':      '200-day moving average · Key long-term support watched by institutions',
+  'Net Margin':      'Revenue % that becomes net profit · Higher is better; varies by sector',
+  'ROE':             'Return on equity · Profit vs. shareholders\' equity · >15% generally strong',
+  'Debt/Equity':     'Total debt ÷ equity · Higher = more leverage · >2× may signal elevated risk',
+  'Revenue Growth':  'Year-over-year revenue growth rate',
+  'Rank':            'Cryptocurrency rank by market capitalization (#1 = largest)',
+  '24h Volume':      'Total USD value of Bitcoin traded in the last 24 hours',
+  'Circ. Supply':    'Bitcoin currently in circulation; new supply via mining, capped at 21M',
+  'Max Supply':      'Bitcoin\'s absolute cap of 21 million BTC, enforced by protocol',
+  'All-Time High':   'Highest price Bitcoin has ever reached',
+  'From ATH':        'How far below the all-time high the current price sits',
+  '7D Change':       'Price change over the last 7 days',
+  '30D Change':      'Price change over the last 30 days',
+  'Fear & Greed':    '0 = extreme fear (historically good buy) · 100 = extreme greed (potential sell)',
+};
 
 // ═══════════════════════════════════════════════════
 //  STATE
@@ -735,9 +780,11 @@ function renderFundItems(items,id){
   return`<div class="fund-grid">${items.map(item=>{
     if(item.isFNG){
       const pct=Math.min(100,Math.max(0,item.v));
-      return`<div class="fi" style="grid-column:1/-1"><span class="fk">Fear &amp; Greed Gauge</span><div class="fng-bar"><div class="fng-needle" style="left:${pct}%"></div></div></div>`;
+      const desc=FUND_DESC['Fear & Greed']||'';
+      return`<div class="fi" style="grid-column:1/-1"><span class="fk">Fear &amp; Greed Gauge</span>${desc?`<span class="fdesc">${desc}</span>`:''}<div class="fng-bar" style="margin-top:5px"><div class="fng-needle" style="left:${pct}%"></div></div></div>`;
     }
-    return`<div class="fi"><span class="fk">${item.k}</span><span class="fv ${item.cls||''}">${item.v}</span></div>`;
+    const desc=FUND_DESC[item.k]||'';
+    return`<div class="fi"><span class="fk">${item.k}</span>${desc?`<span class="fdesc">${desc}</span>`:''}<span class="fv ${item.cls||''}">${item.v}</span></div>`;
   }).join('')}</div>`;
 }
 
@@ -760,7 +807,8 @@ function cardHTML(asset,d,ana){
   const iRows=rows.map(r=>{
     const sc2=r.sig==='BUY'?'buy':r.sig==='SELL'?'sell':'neu';
     const sl=r.sig==='NEUTRAL'?r.note:r.sig;
-    return`<div class="irow"><span class="in">${r.n}</span><span class="iv">${r.v}</span><span class="is ${sc2}"><span class="id"></span>${sl}</span></div>`;
+    const desc=IND_DESC[r.n]||'';
+    return`<div class="irow"><div class="inm"><span class="in">${r.n}</span>${desc?`<span class="indesc">${desc}</span>`:''}</div><span class="iv">${r.v}</span><span class="is ${sc2}"><span class="id"></span>${sl}</span></div>`;
   }).join('');
 
   const periods=['1H','1W','1M','3M','1Y','5Y'];
@@ -795,6 +843,7 @@ function cardHTML(asset,d,ana){
     <div class="ssec">
       <div class="shdr"><span class="slb">Signal Strength</span><span class="svl">${ss}${score.toFixed(1)} / 9.0</span></div>
       <div class="strk"><div class="sfil" style="width:${norm}%;background:${bclr}"></div></div>
+      <span class="sdesc">Combined score from all indicators · −9 = strongest sell · 0 = neutral · +9 = strongest buy</span>
     </div>
     <!-- FUNDAMENTAL TOGGLE -->
     <button class="tbtn" id="ftbtn-${id}" onclick="toggleFund('${id}');loadFund(ASSETS.find(a=>a.id==='${id}'))">
