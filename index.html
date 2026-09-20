@@ -260,7 +260,8 @@
     .ev-list{display:flex;flex-direction:column;gap:5px}
     .ev-item{display:grid;grid-template-columns:10px 1fr auto;gap:9px;align-items:start;padding:8px 10px;background:var(--sur2);border-radius:var(--rsm);border:1px solid var(--bdr2)}
     .ev-dot{width:8px;height:8px;border-radius:50%;margin-top:3px;flex-shrink:0}
-    .ev-dot.fed{background:#00d4aa} .ev-dot.geo{background:#ff9933} .ev-dot.crypto{background:#8866ff} .ev-dot.eco{background:#ffcc44}
+    .ev-dot.fed{background:#00d4aa} .ev-dot.geo{background:#ff9933} .ev-dot.crypto{background:#8866ff} .ev-dot.eco{background:#ffcc44} .ev-dot.cb{background:#4499ff}
+    .cur-badge{display:inline-block;padding:1px 6px;border-radius:3px;font-size:9px;font-weight:700;font-family:var(--mono);background:var(--adim);border:1px solid var(--acc);color:var(--acc);margin-left:6px;letter-spacing:.04em}
     .ev-title{font-size:10px;font-weight:600;color:var(--tbri)}
     .ev-date{font-size:8px;color:var(--tdim);font-family:var(--mono);margin-top:1px}
     .ev-desc{font-size:9px;color:var(--txt);margin-top:2px;line-height:1.4}
@@ -442,6 +443,7 @@
         <div class="da-sec-body" style="padding:10px 13px">
           <div class="ev-legend">
             <div class="ev-leg-item"><div class="ev-leg-dot" style="background:#00d4aa"></div>Fed Policy</div>
+            <div class="ev-leg-item"><div class="ev-leg-dot" style="background:#4499ff"></div>Intl. CB (ECB/BOJ)</div>
             <div class="ev-leg-item"><div class="ev-leg-dot" style="background:#ff9933"></div>Geopolitical</div>
             <div class="ev-leg-item"><div class="ev-leg-dot" style="background:#ffcc44"></div>Economic</div>
             <div class="ev-leg-item"><div class="ev-leg-dot" style="background:#8866ff"></div>Crypto</div>
@@ -549,6 +551,7 @@ const activePeriod={}; // id → period string
 // Persistent state
 let comparisons = loadStore('ta_comps',[]);
 let customAssets = loadStore('ta_custom',[]);
+let _pendingQuotes = []; // ISIN search results waiting for user selection
 
 function loadStore(key,def){try{return JSON.parse(localStorage.getItem(key)||'null')||def}catch{return def}}
 function saveStore(key,val){try{localStorage.setItem(key,JSON.stringify(val))}catch{}}
@@ -1441,36 +1444,61 @@ async function searchIsin(){
   btn.disabled=true;btn.textContent='Searching…';
   document.getElementById('isinStatus').textContent='';
   document.getElementById('isinResults').innerHTML='';
+  _pendingQuotes=[];
   try{
-    const url=`https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(raw)}&quotesCount=6&newsCount=0&enableFuzzyQuery=false`;
+    const url=`https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(raw)}&quotesCount=8&newsCount=0&enableFuzzyQuery=false`;
     const data=await fetchJSON(url);
     const quotes=(data?.quotes||[]).filter(q=>q.symbol&&q.quoteType&&q.quoteType!=='OPTION');
     if(!quotes.length){document.getElementById('isinStatus').textContent='No results found. Try the ticker symbol directly (e.g. AAPL, MSFT).';return}
-    document.getElementById('isinStatus').textContent='Select the correct instrument:';
-    document.getElementById('isinResults').innerHTML=quotes.slice(0,5).map(q=>
-      `<div class="ires" onclick="addCustomAsset('${q.symbol.replace(/'/g,'\\\'').replace(/"/g,'&quot;')}','${(q.shortname||q.longname||q.symbol).replace(/'/g,'\\\'').replace(/"/g,'&quot;')}','${raw}')">
-        <strong>${q.symbol}</strong> — ${q.shortname||q.longname||'—'} <small>${q.exchange||''} · ${q.quoteType||''}</small>
-      </div>`
-    ).join('');
+    _pendingQuotes=quotes.slice(0,6);
+    // Check if results span multiple currencies
+    const currencies=[...new Set(_pendingQuotes.map(q=>q.currency||'').filter(Boolean))];
+    const multiCur=currencies.length>1;
+    document.getElementById('isinStatus').innerHTML=
+      multiCur
+        ? `<span style="color:var(--yel)">⚠ Multiple currencies found.</span> Select the exchange and currency you want:`
+        : 'Select the correct instrument:';
+    document.getElementById('isinResults').innerHTML=_pendingQuotes.map((q,i)=>{
+      const cur=q.currency||'';
+      const name=q.shortname||q.longname||q.symbol;
+      const exch=q.exchange||'';
+      const type=q.quoteType||'';
+      return`<div class="ires" onclick="addCustomAssetByIdx(${i})">
+        <div style="display:flex;align-items:center;gap:0;flex-wrap:wrap">
+          <strong>${q.symbol}</strong>
+          ${cur?`<span class="cur-badge">${cur}</span>`:''}
+          <span style="margin-left:8px;color:var(--txt)">${name}</span>
+        </div>
+        <div style="margin-top:3px"><small style="color:var(--tdim)">${exch}${exch&&type?' · ':''}${type}</small></div>
+      </div>`;
+    }).join('');
   }catch(e){
     document.getElementById('isinStatus').textContent='Search failed: '+e.message+'. Try again or enter the ticker directly.';
   }
   btn.disabled=false;btn.textContent='🔍 Search';
 }
 
-function addCustomAsset(symbol,name,isin){
+function addCustomAssetByIdx(idx){
+  const q=_pendingQuotes[idx];
+  if(!q)return;
+  const isin=document.getElementById('isinInput').value.trim().toUpperCase();
+  addCustomAsset(q.symbol,q.shortname||q.longname||q.symbol,isin,q.currency||'USD');
+}
+
+function addCustomAsset(symbol,name,isin,cur){
   if(customAssets.find(a=>a.symbol===symbol)){
     document.getElementById('isinStatus').textContent='Already in your watchlist: '+name;
     document.getElementById('isinResults').innerHTML='';
     return;
   }
   const id='custom_'+Date.now();
-  const asset={id,isin,symbol,name,region:'custom',type:'yahoo',cur:'USD'};
+  const asset={id,isin,symbol,name,region:'custom',type:'yahoo',cur:cur||'USD'};
   customAssets.push(asset);
   saveStore('ta_custom',customAssets);
   document.getElementById('isinInput').value='';
   document.getElementById('isinResults').innerHTML='';
   document.getElementById('isinStatus').textContent='';
+  _pendingQuotes=[];
   updateCustomCnt();
   buildCompSelects();
   renderCustomGrid();
@@ -1624,24 +1652,45 @@ async function fetchAll(){
 //  MACRO EVENTS DATABASE
 // ═══════════════════════════════════════════════════
 const MACRO_EVENTS=[
+  // ── 2020 ──
   {date:'2020-03-11',title:'COVID Pandemic',desc:'WHO declares COVID-19 a global pandemic — markets crash globally',type:'geo'},
   {date:'2020-03-16',title:'Fed → 0%',desc:'Fed emergency rate cut to 0-0.25%; massive QE launched — largest since 2008',type:'fed'},
+  // ── 2021 ──
   {date:'2021-05-19',title:'BTC Crash',desc:'China bans crypto mining; Bitcoin drops ~50% in weeks',type:'crypto'},
   {date:'2021-09-20',title:'Evergrande Crisis',desc:'Chinese property giant Evergrande misses debt payments; global contagion fears',type:'eco'},
+  // ── 2022 ──
   {date:'2022-02-24',title:'Russia Invades Ukraine',desc:'Russia begins full-scale invasion of Ukraine; energy prices spike, global risk-off',type:'geo'},
   {date:'2022-03-16',title:'Fed +25bp',desc:'First Fed hike of 2022 tightening cycle; start of most aggressive tightening in 40 years',type:'fed'},
   {date:'2022-06-15',title:'Fed +75bp',desc:'Largest single hike since 1994 amid 9.1% inflation; markets in bear territory',type:'fed'},
+  {date:'2022-07-21',title:'ECB First Hike +50bp',desc:'ECB raises rates for first time in 11 years; signals end of negative-rate era in Europe',type:'cb'},
   {date:'2022-09-21',title:'Fed +75bp #3',desc:'Third consecutive 75bp hike; Fed signals rates will stay higher for longer',type:'fed'},
+  {date:'2022-10-05',title:'OPEC+ 2M bpd Cuts',desc:'OPEC+ announces largest production cuts since COVID — 2M barrels/day removed; oil spikes',type:'eco'},
+  {date:'2022-10-27',title:'ECB +75bp',desc:'ECB largest-ever single hike; Euro area inflation at record 10.7% — historic tightening',type:'cb'},
+  {date:'2022-11-08',title:'US Midterm Elections',desc:'Republicans win House, Democrats retain Senate; divided Congress emerges — markets neutral',type:'geo'},
   {date:'2022-11-08',title:'FTX Collapse',desc:'FTX exchange collapses; $8B customer fund hole discovered — major crypto contagion',type:'crypto'},
+  // ── 2023 ──
   {date:'2023-03-10',title:'SVB Collapse',desc:'Silicon Valley Bank fails — largest US bank collapse since 2008; banking crisis fears',type:'eco'},
+  {date:'2023-03-19',title:'Credit Suisse Rescue',desc:'UBS acquires Credit Suisse in emergency weekend deal; 167-year-old bank saved from collapse',type:'eco'},
+  {date:'2023-04-02',title:'OPEC+ Surprise Cut',desc:'OPEC+ announces additional 1.6M bpd surprise cut; oil jumps 6% on the news',type:'eco'},
+  {date:'2023-05-25',title:'NVDA AI Earnings Shock',desc:'Nvidia guides revenue +64% YoY on AI demand; stock surges 25% — sparks global AI rally',type:'eco'},
+  {date:'2023-06-01',title:'US Debt Ceiling Resolved',desc:'Biden signs debt ceiling deal; US avoids default at last minute — Treasury X-date passed',type:'eco'},
   {date:'2023-07-26',title:'Fed Peak 5.5%',desc:'Fed raises to 5.25-5.5% — highest in 22 years; last hike of tightening cycle',type:'fed'},
+  {date:'2023-08-01',title:'Fitch Downgrades US',desc:'Fitch cuts US long-term credit rating from AAA to AA+; markets sell off on fiscal concerns',type:'eco'},
+  {date:'2023-09-14',title:'ECB Peak Rate 4.5%',desc:'ECB final hike to 4.5% — highest ever in euro era; signals rates have peaked',type:'cb'},
   {date:'2023-10-07',title:'Hamas Attacks Israel',desc:'Hamas launches surprise attack on Israel; Middle East tensions spike; oil rallies',type:'geo'},
+  // ── 2024 ──
   {date:'2024-01-10',title:'Bitcoin ETF Approved',desc:'SEC approves first spot Bitcoin ETF; massive institutional inflows begin immediately',type:'crypto'},
+  {date:'2024-03-19',title:'BOJ Exits Negative Rates',desc:'Bank of Japan raises rates to 0.1% — first hike in 17 years; ends negative rate era',type:'cb'},
   {date:'2024-04-19',title:'Bitcoin Halving',desc:'4th Bitcoin halving: block reward halves from 6.25 to 3.125 BTC — supply shock',type:'crypto'},
+  {date:'2024-06-06',title:'ECB First Cut -25bp',desc:'ECB cuts for first time since 2019; begins easing cycle ahead of Fed — euro weakens',type:'cb'},
+  {date:'2024-07-31',title:'BOJ Hikes to 0.25%',desc:'BOJ surprise hike shocks markets; yen surges as decades-old carry trade begins to unwind',type:'cb'},
+  {date:'2024-08-05',title:'Yen Carry Trade Unwind',desc:'Global sell-off: Nikkei -12%, VIX spikes to 65. Forced unwinding of leveraged yen positions',type:'eco'},
   {date:'2024-09-18',title:'Fed -50bp',desc:'Fed cuts 50bp — first cut since 2020; start of new easing cycle',type:'fed'},
   {date:'2024-11-05',title:'Trump Wins Election',desc:'Trump wins 2024 US election; markets rally on tax cut and deregulation expectations',type:'geo'},
   {date:'2024-12-18',title:'Fed Hawkish Pivot',desc:'Fed signals only 2 cuts in 2025 vs 4 expected; dollar surges, equities sell off',type:'fed'},
+  // ── 2025 ──
   {date:'2025-01-20',title:'Trump Inauguration',desc:'Trump begins second term; executive orders on tariffs, energy, and crypto issued day one',type:'geo'},
+  {date:'2025-01-27',title:'DeepSeek AI Shock',desc:'Chinese AI startup DeepSeek releases model rivaling GPT-4 at fraction of cost; Nvidia drops 17%',type:'eco'},
   {date:'2025-04-02',title:'"Liberation Day" Tariffs',desc:'Trump announces sweeping reciprocal tariffs on 70+ countries — largest since the 1930s',type:'eco'},
   {date:'2025-04-09',title:'Tariff Pause 90 Days',desc:'90-day pause on most tariffs; S&P 500 surges 9.5% — one of largest single-day gains ever',type:'eco'},
   {date:'2025-06-18',title:'Fed -25bp',desc:'Fed resumes rate cuts citing tariff-driven economic slowdown and disinflation',type:'fed'},
@@ -1650,12 +1699,16 @@ const MACRO_EVENTS=[
   {date:'2025-09-17',title:'FOMC Sep 2025',desc:'September Fed meeting; updated projections released — key for Q4 rate expectations',type:'fed'},
   {date:'2025-11-05',title:'FOMC Nov 2025',desc:'November rate decision; labor market and CPI data shape the vote outcome',type:'fed'},
   {date:'2025-12-10',title:'FOMC Dec 2025',desc:'Year-end meeting; 2026 dot-plot projections and rate path guidance published',type:'fed'},
+  // ── 2026 ──
   {date:'2026-01-28',title:'FOMC Jan 2026',desc:'First Fed decision of 2026; sets policy tone for the year ahead',type:'fed'},
   {date:'2026-03-18',title:'FOMC Mar 2026',desc:'March meeting with quarterly SEP; rate forecasts and economic projections',type:'fed'},
   {date:'2026-05-06',title:'FOMC May 2026',desc:'May rate decision; mid-year read on inflation and employment trajectory',type:'fed'},
   {date:'2026-06-17',title:'FOMC Jun 2026',desc:'June SEP update; dot-plot revision and press conference widely watched',type:'fed'},
   {date:'2026-07-29',title:'FOMC Jul 2026',desc:'July rate decision; H1 2026 economic performance review',type:'fed'},
   {date:'2026-09-17',title:'FOMC Sep 2026',desc:'September meeting; Q3 assessment and year-end guidance for markets',type:'fed'},
+  {date:'2026-11-04',title:'FOMC Nov 2026',desc:'November rate decision; post-midterm economic and policy assessment',type:'fed'},
+  {date:'2026-11-03',title:'US Midterm Elections 2026',desc:'US Congressional midterms; all 435 House and 34 Senate seats contested — key market event',type:'geo'},
+  {date:'2026-12-09',title:'FOMC Dec 2026',desc:'Year-end meeting; 2027 dot-plot and long-run rate path guidance for markets',type:'fed'},
 ];
 
 // ═══════════════════════════════════════════════════
@@ -1929,7 +1982,7 @@ function drawDAChart(labels,values,cur,ohlc,events,sr){
         const bar=meta.data[ev.idx];
         if(!bar)return;
         const x=bar.x;
-        const clr=ev.type==='fed'?'#00d4aa':ev.type==='geo'?'#ff9933':ev.type==='crypto'?'#8866ff':'#ffcc44';
+        const clr=ev.type==='fed'?'#00d4aa':ev.type==='geo'?'#ff9933':ev.type==='crypto'?'#8866ff':ev.type==='cb'?'#4499ff':'#ffcc44';
         ctx.save();
         ctx.globalAlpha=0.55;ctx.strokeStyle=clr;ctx.lineWidth=1;ctx.setLineDash([3,3]);
         ctx.beginPath();ctx.moveTo(x,chartArea.top);ctx.lineTo(x,chartArea.bottom);ctx.stroke();
@@ -2014,7 +2067,7 @@ function renderDAEvents(events){
     el.innerHTML=`<div class="da-empty">No major macro events recorded in this time window.<br><span style="font-size:9px">Select a longer period (1Y or 5Y) to see event analysis.</span></div>`;
     return;
   }
-  const typeLabel={fed:'Fed Policy',geo:'Geopolitical',eco:'Economic',crypto:'Crypto'};
+  const typeLabel={fed:'Fed Policy',geo:'Geopolitical',eco:'Economic',crypto:'Crypto',cb:'Intl. Central Bank'};
   el.innerHTML=`<div class="ev-list">${events.map(ev=>{
     const chg=ev.chg5,c10=ev.chg10;
     const chgStr=chg!=null?(chg>=0?'+':'')+chg.toFixed(1)+'%':'—';
