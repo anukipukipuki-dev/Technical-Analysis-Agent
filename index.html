@@ -214,17 +214,18 @@
     .da-sub{font-size:9px;color:var(--tdim);margin-top:1px}
     .da-close{background:var(--sur2);border:1px solid var(--bdr);color:var(--tdim);width:28px;height:28px;border-radius:50%;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
     .da-close:hover{background:rgba(255,51,85,.15);border-color:var(--red);color:var(--red)}
-    .da-body{overflow-y:auto;flex:1;padding:14px 18px;display:flex;flex-direction:column;gap:12px}
+    .da-body{overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1;padding:14px 18px;display:flex;flex-direction:column;gap:12px}
     .da-ptabs{display:flex;gap:4px;flex-wrap:wrap}
     .da-ptab{padding:4px 13px;border-radius:var(--rsm);font-size:10px;font-weight:600;font-family:var(--mono);border:1px solid var(--bdr);background:transparent;color:var(--tdim);cursor:pointer;transition:all .15s}
     .da-ptab:hover{color:var(--txt);border-color:var(--tdim)}
     .da-ptab.active{background:var(--adim);border-color:var(--acc);color:var(--acc)}
-    .da-sec{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--r);overflow:hidden}
-    .da-sec-hdr{padding:8px 13px;background:var(--sur2);border-bottom:1px solid var(--bdr2);font-size:9px;text-transform:uppercase;letter-spacing:.09em;color:var(--tdim);display:flex;align-items:center;gap:6px}
+    /* overflow:visible so inner scroll containers are not clipped by the section border */
+    .da-sec{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--r)}
+    .da-sec-hdr{padding:8px 13px;background:var(--sur2);border-bottom:1px solid var(--bdr2);font-size:9px;text-transform:uppercase;letter-spacing:.09em;color:var(--tdim);display:flex;align-items:center;gap:6px;border-radius:calc(var(--r) - 1px) calc(var(--r) - 1px) 0 0}
     .da-sec-hdr em{color:var(--acc);font-style:normal}
-    .da-sec-body{padding:12px 13px}
-    .da-chart-scroll-outer{overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%}
-    .da-chart-wrap{height:310px;position:relative;min-width:560px}
+    .da-sec-body{padding:12px 13px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+    .da-chart-scroll-outer{overflow-x:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x;width:100%}
+    .da-chart-wrap{height:310px;position:relative} /* width set dynamically in JS */
     .da-chart-wrap.cloading::after{content:'Loading…';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--tdim);background:rgba(4,8,15,.7);border-radius:4px}
     /* MTF grid */
     .mtf-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
@@ -272,19 +273,27 @@
     .da-empty{color:var(--tdim);font-size:11px;font-style:italic;text-align:center;padding:12px}
     @keyframes da-in{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
     #da-modal:not([hidden]) .da-panel{animation:da-in .22s cubic-bezier(.25,.8,.25,1) both}
-    /* Landscape compact mode */
+    /* Landscape compact — iPad (height ≤ 900px, e.g. 768px) */
+    @media(orientation:landscape)and(max-height:900px){
+      .da-body{padding:9px 14px;gap:8px}
+      .da-sec-hdr{padding:5px 11px;font-size:8.5px}
+      .da-sec-body{padding:8px 11px}
+      .da-chart-wrap{height:230px}
+      .mtf-pct{font-size:12px}
+      .mtf-grid{grid-template-columns:repeat(4,1fr)}
+      .sr-grid{grid-template-columns:repeat(4,1fr)}
+    }
+    /* Landscape compact — phone (height ≤ 560px) */
     @media(orientation:landscape)and(max-height:560px){
       .da-panel{width:100vw;border-left:none}
       .da-hdr{padding:6px 12px}
       .da-ico{display:none}
       .da-name{font-size:13px}
-      .da-body{padding:8px 12px;gap:7px}
-      .da-sec-hdr{padding:5px 10px;font-size:8px}
-      .da-sec-body{padding:8px 10px}
-      .da-chart-wrap{height:200px}
-      .mtf-grid{grid-template-columns:repeat(4,1fr)}
+      .da-body{padding:7px 12px;gap:6px}
+      .da-sec-hdr{padding:4px 10px;font-size:8px}
+      .da-sec-body{padding:7px 10px}
+      .da-chart-wrap{height:185px}
       .mtf-pct{font-size:11px}
-      .sr-grid{grid-template-columns:repeat(4,1fr)}
     }
 
     /* ── RESPONSIVE ── */
@@ -1779,6 +1788,9 @@ function closeDeepAnalysis(){
   if(modal)modal.setAttribute('hidden','');
   document.body.style.overflow='';
   if(daChart){try{daChart.destroy()}catch{}daChart=null}
+  // Reset chart wrapper width so next open starts fresh
+  const wrap=document.getElementById('da-chart-wrap');
+  if(wrap)wrap.style.width='';
   daAsset=null;
 }
 
@@ -1818,6 +1830,18 @@ function drawDAChart(labels,values,cur,ohlc,events){
   const c=document.getElementById('da-chart');
   if(!c)return;
   if(daChart){try{daChart.destroy()}catch{}daChart=null}
+  // Set chart wrapper width based on period so each candle is clearly visible
+  // Chart.js (responsive:true) will fill this width, triggering horizontal scroll in the outer container
+  (function(){
+    const scrollOuter=c.closest('.da-chart-scroll-outer');
+    const outerW=scrollOuter?Math.floor(scrollOuter.getBoundingClientRect().width):600;
+    // Pixels per bar by period — shorter periods get wider bars for detail
+    const PX={'1W':48,'1M':20,'3M':10,'1Y':6,'5Y':3};
+    const pxPerBar=PX[daPeriod]||6;
+    const chartW=Math.max(outerW,labels.length*pxPerBar,420);
+    const wrap=document.getElementById('da-chart-wrap');
+    if(wrap)wrap.style.width=chartW+'px';
+  })();
   const evPlugin={
     id:'daEvt',
     afterDatasetsDraw(chart){
