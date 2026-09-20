@@ -429,11 +429,11 @@
   <!-- CUSTOM ASSETS PANEL -->
   <div class="panel" id="panel-custom">
     <div class="isin-form">
-      <div style="font-size:11px;color:var(--tdim);margin-bottom:10px">Enter an <strong style="color:var(--acc)">ISIN code</strong> to search and add any stock, ETF, or fund to your personal watchlist.</div>
+      <div style="font-size:11px;color:var(--tdim);margin-bottom:10px">Enter an <strong style="color:var(--acc)">ISIN code</strong> or <strong style="color:var(--acc)">Ticker symbol</strong> to search and add any stock, ETF, or fund to your personal watchlist.</div>
       <div class="isin-row">
         <div class="cfld">
-          <label>ISIN Code</label>
-          <input id="isinInput" type="text" placeholder="e.g. US0231351067" maxlength="12" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')searchIsin()">
+          <label>ISIN or Ticker</label>
+          <input id="isinInput" type="text" placeholder="e.g. IE00B3RBWM25 or VWRL" maxlength="15" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')searchIsin()">
         </div>
         <button class="sbtn" id="isinBtn" onclick="searchIsin()">🔍 Search</button>
       </div>
@@ -441,7 +441,7 @@
       <div class="isin-results" id="isinResults"></div>
     </div>
     <div class="grid" id="grid-custom">
-      <div class="custom-empty"><span>★</span>Your watchlist is empty.<br>Search by ISIN above to add instruments.</div>
+      <div class="custom-empty"><span>★</span>Your watchlist is empty.<br>Search by ISIN or Ticker above to add instruments.</div>
     </div>
   </div>
 </main>
@@ -1578,7 +1578,14 @@ async function ensureAssetData(asset){
     if(dataCache[asset.id])return; // succeeded
     // If it failed, fall through and try again below
   }
-  const p=(asset.type==='yahoo'?fetchYahoo(asset.symbol):fetchCoinGecko())
+  const p=(asset.type==='yahoo'
+    ?fetchYahoo(asset.symbol).catch(async e=>{
+        console.warn('Yahoo failed for',asset.symbol,'— trying Stooq…',e.message);
+        const stooq=await fetchStooq(asset.symbol,asset.cur);
+        if(stooq)return stooq;
+        throw e;
+      })
+    :fetchCoinGecko())
     .then(d=>{dataCache[asset.id]=d})
     .finally(()=>{delete _assetLoadPromises[asset.id]});
   _assetLoadPromises[asset.id]=p;
@@ -1684,16 +1691,87 @@ function updateCompCnt(){
 }
 
 // ═══════════════════════════════════════════════════
+//  SEARCH FALLBACK HELPERS
+// ═══════════════════════════════════════════════════
+
+// Lightweight Yahoo v7 quote check — returns metadata if symbol is valid, null if not
+async function yahooQuoteLookup(sym){
+  const url=`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(sym)}`;
+  try{
+    const data=await fetchJSON(url);
+    const r=data?.quoteResponse?.result?.[0];
+    if(r&&r.regularMarketPrice!=null)return r;
+  }catch(e){}
+  return null;
+}
+
+// OpenFIGI: resolve ISIN → [{ticker, exchCode, name, currency, securityType}]
+async function openFigiLookup(isin){
+  const target='https://api.openfigi.com/v3/mapping';
+  const body=JSON.stringify([{"idType":"ID_ISIN","idValue":isin}]);
+  try{
+    const r=await fetch(`https://corsproxy.io/?${encodeURIComponent(target)}`,{
+      method:'POST',headers:{'Content-Type':'application/json'},body,signal:mkAbort(14000)
+    });
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const data=await r.json();
+    return(data?.[0]?.data||[]).filter(d=>d.ticker);
+  }catch(e){console.warn('OpenFIGI:',e);return[];}
+}
+
+// FIGI exchange code → Yahoo Finance symbol suffix
+const FIGI_TO_YAHOO={LN:'.L',GR:'.DE',NA:'.AS',FP:'.PA',SM:'.MC',SW:'.SW',IM:'.MI',BB:'.BR',AV:'.VI',ID:'.IR',AU:'.AX',HK:'.HK',JP:'.T',CN:'.TO',US:''};
+
+// Stooq exchange suffix (for price data fallback)
+const STOOQ_SFX={'GBP':'.UK','EUR':'.DE','CHF':'.SW','JPY':'.JP','AUD':'.AU','HKD':'.HK','CAD':'.CA'};
+
+// Fetch OHLC price data from Stooq (CSV) — fallback when Yahoo chart fails
+async function fetchStooq(yahooSymbol, currency){
+  // Build Stooq ticker: strip Yahoo suffix, add Stooq suffix based on currency
+  const base=yahooSymbol.replace(/\.[A-Z]{1,3}$/,'');
+  const sfx=STOOQ_SFX[currency]||'';
+  const sym=(base+sfx).toLowerCase();
+  const url=`https://stooq.com/q/d/l/?s=${encodeURIComponent(sym)}&i=d`;
+  const enc=encodeURIComponent(url);
+  let csv='';
+  const tries=[
+    ()=>fetch(`https://corsproxy.io/?${enc}`,{signal:mkAbort(12000)}).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.text()}),
+    ()=>tryGet(`https://api.allorigins.win/get?url=${enc}`,14000).then(d=>{
+      if(d&&typeof d.contents==='string')return d.contents;throw new Error('empty');
+    }),
+  ];
+  for(const fn of tries){try{csv=await fn();if(csv&&csv.includes('Date'))break;}catch(e){}}
+  if(!csv||!csv.includes('Date'))return null;
+  const rows=csv.trim().split('\n').slice(1); // skip header
+  const closes=[],timestamps=[],opens=[],highs=[],lows=[];
+  for(const row of rows){
+    const[date,o,h,l,c]=row.split(',');
+    if(!date||!c||c==='null'||isNaN(+c))continue;
+    const ts=Date.parse(date)/1000;
+    timestamps.push(ts);
+    opens.push(+o);highs.push(+h);lows.push(+l);closes.push(+c);
+  }
+  if(closes.length<5)return null;
+  const lc=closes[closes.length-1];
+  const prev=closes[closes.length-2]||lc;
+  const changePct=((lc-prev)/prev*100).toFixed(2);
+  return{closes,timestamps,opens,highs,lows,lastClose:lc,changePct,cur:currency,dividends:[],_source:'stooq'};
+}
+
+// ═══════════════════════════════════════════════════
 //  CUSTOM ASSETS (ISIN WATCHLIST)
 // ═══════════════════════════════════════════════════
 async function searchIsin(){
   const raw=document.getElementById('isinInput').value.trim().toUpperCase();
-  if(raw.length<6){document.getElementById('isinStatus').textContent='Please enter a valid ISIN (minimum 6 characters).';return}
+  if(raw.length<2){document.getElementById('isinStatus').textContent='Enter an ISIN code (e.g. IE00B3RBWM25) or a ticker symbol (e.g. VWRL, AAPL).';return}
   const btn=document.getElementById('isinBtn');
   btn.disabled=true;btn.textContent='Searching…';
   document.getElementById('isinStatus').textContent='Searching…';
   document.getElementById('isinResults').innerHTML='';
   _pendingQuotes=[];
+
+  // Detect if input looks like an ISIN (starts with 2 letters then digits, 12 chars) vs a ticker
+  const isIsin=/^[A-Z]{2}[A-Z0-9]{10}$/.test(raw);
 
   // Try both Yahoo Finance search variants; fuzzy=true finds European/non-US ISINs better
   async function yahooSearch(fuzzy){
@@ -1726,35 +1804,82 @@ async function searchIsin(){
   }
 
   try{
-    // Pass 1: strict ISIN match
-    let quotes=await yahooSearch(false);
-    // Pass 2: fuzzy — better for European ETF ISINs like IE00B3RBWM25
-    if(!quotes.length){
-      document.getElementById('isinStatus').textContent='Broadening search…';
+    let quotes=[];
+    if(isIsin){
+      // ISIN: start with strict, then fuzzy
+      quotes=await yahooSearch(false);
+      if(!quotes.length){
+        document.getElementById('isinStatus').textContent='Broadening search…';
+        quotes=await yahooSearch(true);
+      }
+    } else {
+      // Ticker: fuzzy first (handles partial names too), then strict as fallback
       quotes=await yahooSearch(true);
+      if(!quotes.length) quotes=await yahooSearch(false);
     }
+    // ── FALLBACK A: exchange-suffix scan (for bare tickers like VWRL → VWRL.L, VWRL.DE …) ──
+    if(!quotes.length&&!isIsin){
+      document.getElementById('isinStatus').textContent='Trying global exchanges…';
+      const SUFFIXES=['.L','.DE','.AS','.PA','.SW','.MI','.MC','.BR','.VI','.IR','.AX','.HK','.T','.TO','.SA','.BO','.NS'];
+      const checks=await Promise.allSettled(SUFFIXES.map(suf=>yahooQuoteLookup(raw+suf)));
+      quotes=checks
+        .filter(r=>r.status==='fulfilled'&&r.value)
+        .map(r=>r.value)
+        .map(q=>({symbol:q.symbol,shortname:q.shortName||q.longName||q.symbol,currency:q.currency,exchange:q.fullExchangeName||q.exchange||'',quoteType:q.quoteType||'EQUITY',_fallback:'suffix'}));
+    }
+
+    // ── FALLBACK B: OpenFIGI → ISIN to ticker resolution ──
+    if(!quotes.length&&isIsin){
+      document.getElementById('isinStatus').textContent='Resolving ISIN via OpenFIGI…';
+      const figis=await openFigiLookup(raw);
+      if(figis.length){
+        const syms=figis.map(f=>{const suf=FIGI_TO_YAHOO[f.exchCode];return suf!=null?f.ticker+suf:null;}).filter(Boolean);
+        const checks=await Promise.allSettled([...new Set(syms)].map(s=>yahooQuoteLookup(s)));
+        quotes=checks
+          .filter(r=>r.status==='fulfilled'&&r.value)
+          .map(r=>r.value)
+          .map(q=>({symbol:q.symbol,shortname:q.shortName||q.longName||q.symbol,currency:q.currency,exchange:q.fullExchangeName||q.exchange||'',quoteType:q.quoteType||'EQUITY',_fallback:'openfigi'}));
+        // If Yahoo didn't recognise the tickers, still offer OpenFIGI results directly
+        if(!quotes.length){
+          quotes=figis.slice(0,6).map(f=>({
+            symbol:f.ticker+(FIGI_TO_YAHOO[f.exchCode]??''),
+            shortname:f.name||f.ticker,
+            currency:f.currency||'',
+            exchange:f.exchCode||'',
+            quoteType:f.securityType||'EQUITY',
+            _fallback:'openfigi-direct'
+          }));
+        }
+      }
+    }
+
     if(!quotes.length){
       document.getElementById('isinStatus').innerHTML=
         'No results found for <strong>'+raw+'</strong>. '+
-        'Try the ticker symbol directly (e.g. SWDA, EUNL, AAPL).';
+        (isIsin?'Check the ISIN code — it may not be listed on supported exchanges.':'Try the full ISIN code or add the exchange suffix (e.g. VWRL<b>.L</b> for London, VWCE<b>.DE</b> for Xetra).');
       btn.disabled=false;btn.textContent='🔍 Search';
       return;
     }
-    _pendingQuotes=quotes.slice(0,6);
+    _pendingQuotes=quotes.slice(0,8);
     const currencies=[...new Set(_pendingQuotes.map(q=>q.currency||'').filter(Boolean))];
     const multiCur=currencies.length>1;
+    const hasFallback=_pendingQuotes.some(q=>q._fallback);
+    const fallbackTag=hasFallback?` <span style="font-size:8.5px;color:var(--tdim);font-style:italic">(via alternative source)</span>`:'';
     document.getElementById('isinStatus').innerHTML=
       multiCur
         ? `<span style="color:var(--yel)">⚠ Multiple currencies found.</span> Select the exchange and currency you want:`
-        : `Found <strong>${_pendingQuotes.length}</strong> result${_pendingQuotes.length>1?'s':''}. Select the correct instrument:`;
+        : `Found <strong>${_pendingQuotes.length}</strong> result${_pendingQuotes.length>1?'s':''}. Select the correct instrument:${fallbackTag}`;
     document.getElementById('isinResults').innerHTML=_pendingQuotes.map((q,i)=>{
       const cur=q.currency||'';
       const name=(q.shortname||q.longname||q.symbol).replace(/</g,'&lt;').replace(/>/g,'&gt;');
       const exch=q.exchange||'';
       const type=q.quoteType||'';
+      const srcBadge=q._fallback==='openfigi'?`<span style="font-size:7px;color:var(--acc);background:var(--adim);padding:1px 4px;border-radius:2px;margin-left:5px">OpenFIGI</span>`
+                    :q._fallback?`<span style="font-size:7px;color:var(--tdim);padding:1px 4px">alt</span>`:'';
       return`<div class="ires" onclick="addCustomAssetByIdx(${i})">
         <div style="display:flex;align-items:center;gap:0;flex-wrap:wrap">
           <strong>${q.symbol}</strong>
+          ${srcBadge}
           ${cur?`<span class="cur-badge">${cur}</span>`:''}
           <span style="margin-left:8px;color:var(--txt)">${name}</span>
         </div>
@@ -1770,7 +1895,9 @@ async function searchIsin(){
 function addCustomAssetByIdx(idx){
   const q=_pendingQuotes[idx];
   if(!q)return;
-  const isin=document.getElementById('isinInput').value.trim().toUpperCase();
+  const raw=document.getElementById('isinInput').value.trim().toUpperCase();
+  // Only store as ISIN if it actually matches the ISIN pattern; otherwise it was a ticker search
+  const isin=/^[A-Z]{2}[A-Z0-9]{10}$/.test(raw)?raw:'';
   addCustomAsset(q.symbol,q.shortname||q.longname||q.symbol,isin,q.currency||'USD');
 }
 
