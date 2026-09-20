@@ -561,7 +561,8 @@ const dataCache={};    // id → {closes,timestamps,lastClose,changePct,cur}
 const fundCache={};    // id → items[]
 const chartCache={};   // `${id}:${period}` → {labels,values}
 const activePeriod={}; // id → period string
-const chartMode={};    // id → 'price' | 'seasonality'
+const chartMode={};        // id → 'price' | 'seasonality'
+const seasonalityYears={}; // id → years number (1,2,5,10,null=all)
 
 // Persistent state
 let comparisons = loadStore('ta_comps',[]);
@@ -1131,21 +1132,32 @@ async function switchChartMode(id,mode){
   if(!sec)return;
   sec.querySelectorAll('.ctb').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
   const pbrow=document.getElementById('pbrow-'+id);
+  const spbrow=document.getElementById('spbrow-'+id);
   if(pbrow)pbrow.style.display=mode==='price'?'':'none';
+  if(spbrow)spbrow.style.display=mode==='seasonality'?'':'none';
   if(mainCharts[id]){try{mainCharts[id].destroy()}catch{}delete mainCharts[id];}
   if(mode==='seasonality') await drawSeasonalityChart(id);
   else await switchPeriod(id,activePeriod[id]||'1M');
 }
 
-function computeSeasonality(closes,timestamps){
+async function switchSeasonalityPeriod(id,years,label){
+  seasonalityYears[id]=years==='0'?null:parseInt(years);
+  const spbrow=document.getElementById('spbrow-'+id);
+  if(spbrow)spbrow.querySelectorAll('.pb').forEach(b=>b.classList.toggle('active',b.dataset.syears===years));
+  await drawSeasonalityChart(id);
+}
+
+function computeSeasonality(closes,timestamps,years){
   const monthly=Array(12).fill(null).map(()=>[]);
+  const cutoff=years?((Date.now()/1000)-(years*365.25*86400)):0;
   for(let i=1;i<closes.length;i++){
+    if(years&&timestamps[i]<cutoff)continue;
     const d=new Date(timestamps[i]*1000);
     const m=d.getMonth();
     const ret=((closes[i]-closes[i-1])/closes[i-1])*100;
     if(isFinite(ret))monthly[m].push(ret);
   }
-  return monthly.map(arr=>arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:0);
+  return monthly.map(arr=>arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:null);
 }
 
 async function drawSeasonalityChart(id){
@@ -1158,10 +1170,12 @@ async function drawSeasonalityChart(id){
     await ensureAssetData(asset);
     const d=dataCache[id];
     if(!d||!d.closes||!d.timestamps){throw new Error('No data');}
-    const avgs=computeSeasonality(d.closes,d.timestamps);
+    const years=seasonalityYears[id]!==undefined?seasonalityYears[id]:5;
+    const avgs=computeSeasonality(d.closes,d.timestamps,years);
     const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const bgColors=avgs.map(v=>v>=0?'rgba(0,230,118,.65)':'rgba(255,51,85,.65)');
-    const bdColors=avgs.map(v=>v>=0?'#00e676':'#ff3355');
+    const bgColors=avgs.map(v=>v==null?'rgba(74,104,128,.2)':v>=0?'rgba(0,230,118,.65)':'rgba(255,51,85,.65)');
+    const bdColors=avgs.map(v=>v==null?'#1a3356':v>=0?'#00e676':'#ff3355');
+    const samplesLabel=years?`last ${years}Y`:'all data';
     const c=document.getElementById('mc-'+id);
     if(!c){if(wrap)wrap.classList.remove('cloading');return;}
     if(mainCharts[id]){try{mainCharts[id].destroy()}catch{}}
@@ -1172,9 +1186,9 @@ async function drawSeasonalityChart(id){
         responsive:true,maintainAspectRatio:false,animation:{duration:300},
         plugins:{
           legend:{display:false},
-          title:{display:true,text:'Average Monthly Return (%)',color:'#4a6880',font:{size:9,family:"'JetBrains Mono',monospace"},padding:{bottom:6}},
+          title:{display:true,text:`Avg Monthly Return — ${samplesLabel}`,color:'#4a6880',font:{size:9,family:"'JetBrains Mono',monospace"},padding:{bottom:6}},
           tooltip:{backgroundColor:'rgba(4,8,20,.92)',borderColor:'#1a3356',borderWidth:1,titleColor:'#4a6880',bodyColor:'#e8f4ff',padding:{x:10,y:6},displayColors:false,
-            callbacks:{title:i=>i[0].label,label:i=>` Avg: ${i.raw>=0?'+':''}${i.raw.toFixed(2)}%`}}
+            callbacks:{title:i=>i[0].label,label:i=>i.raw==null?' No data':` Avg: ${i.raw>=0?'+':''}${i.raw.toFixed(2)}%`}}
         },
         scales:{
           x:{grid:{color:'rgba(26,51,86,.2)',drawBorder:false},ticks:{color:'#4a6880',font:{size:9,family:"'JetBrains Mono',monospace"},maxRotation:0},border:{display:false}},
@@ -1274,6 +1288,9 @@ function cardHTML(asset,d,ana,deleteCb=''){
         <button class="ctb" data-mode="seasonality" onclick="switchChartMode('${id}','seasonality')">📅 Seasonality</button>
       </div>
       <div class="pbrow" id="pbrow-${id}">${pBtns}</div>
+      <div class="pbrow" id="spbrow-${id}" style="display:none">
+        ${['1Y','2Y','5Y','10Y','All'].map(p=>`<button class="pb${p==='5Y'?' active':''}" data-syears="${p==='All'?'0':p}" onclick="switchSeasonalityPeriod('${id}','${p==='All'?'0':p.replace('Y','')}','${p}')">${p}</button>`).join('')}
+      </div>
       <div class="cwrap"><canvas id="mc-${id}"></canvas></div>
     </div>
     <div class="inds">
