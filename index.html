@@ -103,6 +103,10 @@
     .pb.active{background:var(--adim);border-color:var(--acc);color:var(--acc)}
     .cwrap{position:relative;height:240px}
     .cwrap.cloading::after{content:'Loading…';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--tdim);background:rgba(4,8,15,.6);border-radius:4px}
+    .ctype-row{display:flex;gap:4px;margin-bottom:8px}
+    .ctb{padding:2px 9px;border-radius:3px;font-size:9px;font-weight:600;font-family:var(--mono);border:1px solid var(--bdr);background:transparent;color:var(--tdim);cursor:pointer;transition:all .15s;letter-spacing:.03em}
+    .ctb:hover{color:var(--txt);border-color:var(--tdim)}
+    .ctb.active{background:var(--adim);border-color:var(--acc);color:var(--acc)}
 
     /* ── INDICATORS ── */
     .inds{padding:9px 13px}
@@ -557,6 +561,7 @@ const dataCache={};    // id → {closes,timestamps,lastClose,changePct,cur}
 const fundCache={};    // id → items[]
 const chartCache={};   // `${id}:${period}` → {labels,values}
 const activePeriod={}; // id → period string
+const chartMode={};    // id → 'price' | 'seasonality'
 
 // Persistent state
 let comparisons = loadStore('ta_comps',[]);
@@ -1098,7 +1103,9 @@ async function toggleChart(id){
   sec.style.display=open?'none':'block';
   btn.classList.toggle('open',!open);
   if(!open&&!mainCharts[id]){
-    await switchPeriod(id,activePeriod[id]||'1M');
+    const mode=chartMode[id]||'price';
+    if(mode==='seasonality') await drawSeasonalityChart(id);
+    else await switchPeriod(id,activePeriod[id]||'1M');
   }
 }
 
@@ -1115,6 +1122,68 @@ async function switchPeriod(id,period){
     const{labels,values,ohlc}=await getChartData(asset,period);
     drawMainChart(id,labels,values,CUR_SYM[asset.cur]||'',ohlc);
   }catch(e){console.warn('Chart fetch',id,period,e)}
+  if(wrap)wrap.classList.remove('cloading');
+}
+
+async function switchChartMode(id,mode){
+  chartMode[id]=mode;
+  const sec=document.getElementById('csec-'+id);
+  if(!sec)return;
+  sec.querySelectorAll('.ctb').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
+  const pbrow=document.getElementById('pbrow-'+id);
+  if(pbrow)pbrow.style.display=mode==='price'?'':'none';
+  if(mainCharts[id]){try{mainCharts[id].destroy()}catch{}delete mainCharts[id];}
+  if(mode==='seasonality') await drawSeasonalityChart(id);
+  else await switchPeriod(id,activePeriod[id]||'1M');
+}
+
+function computeSeasonality(closes,timestamps){
+  const monthly=Array(12).fill(null).map(()=>[]);
+  for(let i=1;i<closes.length;i++){
+    const d=new Date(timestamps[i]*1000);
+    const m=d.getMonth();
+    const ret=((closes[i]-closes[i-1])/closes[i-1])*100;
+    if(isFinite(ret))monthly[m].push(ret);
+  }
+  return monthly.map(arr=>arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:0);
+}
+
+async function drawSeasonalityChart(id){
+  const sec=document.getElementById('csec-'+id);
+  const wrap=sec&&sec.querySelector('.cwrap');
+  if(wrap)wrap.classList.add('cloading');
+  const asset=getAllAssets().find(a=>a.id===id);
+  if(!asset){if(wrap)wrap.classList.remove('cloading');return;}
+  try{
+    await ensureAssetData(asset);
+    const d=dataCache[id];
+    if(!d||!d.closes||!d.timestamps){throw new Error('No data');}
+    const avgs=computeSeasonality(d.closes,d.timestamps);
+    const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const bgColors=avgs.map(v=>v>=0?'rgba(0,230,118,.65)':'rgba(255,51,85,.65)');
+    const bdColors=avgs.map(v=>v>=0?'#00e676':'#ff3355');
+    const c=document.getElementById('mc-'+id);
+    if(!c){if(wrap)wrap.classList.remove('cloading');return;}
+    if(mainCharts[id]){try{mainCharts[id].destroy()}catch{}}
+    mainCharts[id]=new Chart(c,{
+      type:'bar',
+      data:{labels:months,datasets:[{data:avgs,backgroundColor:bgColors,borderColor:bdColors,borderWidth:1,borderRadius:3}]},
+      options:{
+        responsive:true,maintainAspectRatio:false,animation:{duration:300},
+        plugins:{
+          legend:{display:false},
+          title:{display:true,text:'Average Monthly Return (%)',color:'#4a6880',font:{size:9,family:"'JetBrains Mono',monospace"},padding:{bottom:6}},
+          tooltip:{backgroundColor:'rgba(4,8,20,.92)',borderColor:'#1a3356',borderWidth:1,titleColor:'#4a6880',bodyColor:'#e8f4ff',padding:{x:10,y:6},displayColors:false,
+            callbacks:{title:i=>i[0].label,label:i=>` Avg: ${i.raw>=0?'+':''}${i.raw.toFixed(2)}%`}}
+        },
+        scales:{
+          x:{grid:{color:'rgba(26,51,86,.2)',drawBorder:false},ticks:{color:'#4a6880',font:{size:9,family:"'JetBrains Mono',monospace"},maxRotation:0},border:{display:false}},
+          y:{position:'right',grid:{color:'rgba(26,51,86,.2)',drawBorder:false},
+            ticks:{color:'#4a6880',font:{size:9,family:"'JetBrains Mono',monospace"},callback:v=>(v>=0?'+':'')+v.toFixed(1)+'%',maxTicksLimit:5,padding:4},border:{display:false}}
+        }
+      }
+    });
+  }catch(e){console.warn('Seasonality chart error',id,e);}
   if(wrap)wrap.classList.remove('cloading');
 }
 
@@ -1198,9 +1267,13 @@ function cardHTML(asset,d,ana,deleteCb=''){
       </div>
       <div class="spkbox"><canvas id="spk-${id}" width="100" height="40"></canvas></div>
     </div>
-    <button class="tbtn" id="ctbtn-${id}" onclick="toggleChart('${id}')">📈 Price Chart <span class="ta">▼</span></button>
+    <button class="tbtn" id="ctbtn-${id}" onclick="toggleChart('${id}')">📈 Chart <span class="ta">▼</span></button>
     <div class="chart-sec" id="csec-${id}">
-      <div class="pbrow">${pBtns}</div>
+      <div class="ctype-row">
+        <button class="ctb active" data-mode="price" onclick="switchChartMode('${id}','price')">📈 Price</button>
+        <button class="ctb" data-mode="seasonality" onclick="switchChartMode('${id}','seasonality')">📅 Seasonality</button>
+      </div>
+      <div class="pbrow" id="pbrow-${id}">${pBtns}</div>
       <div class="cwrap"><canvas id="mc-${id}"></canvas></div>
     </div>
     <div class="inds">
@@ -1699,7 +1772,8 @@ async function fetchAll(){
       delete chartCache[`${asset.id}:${activePeriod[asset.id]||'1M'}`];
       const csec=document.getElementById('csec-'+asset.id);
       if(csec&&csec.style.display==='block'){
-        setTimeout(()=>switchPeriod(asset.id,activePeriod[asset.id]||'1M'),200);
+        const cm=chartMode[asset.id]||'price';
+        setTimeout(()=>cm==='seasonality'?drawSeasonalityChart(asset.id):switchPeriod(asset.id,activePeriod[asset.id]||'1M'),200);
       }
     }
   }
@@ -2186,7 +2260,8 @@ function renderDAEvents(events){
     return;
   }
   const typeLabel={fed:'Fed Policy',geo:'Geopolitical',eco:'Economic',crypto:'Crypto',cb:'Intl. Central Bank'};
-  el.innerHTML=`<div class="ev-list">${events.map(ev=>{
+  const sorted=[...events].sort((a,b)=>b.date.localeCompare(a.date));
+  el.innerHTML=`<div class="ev-list">${sorted.map(ev=>{
     const chg=ev.chg5,c10=ev.chg10;
     const chgStr=chg!=null?(chg>=0?'+':'')+chg.toFixed(1)+'%':'—';
     const chgCls=chg==null?'':chg>=0?'up':'dn';
