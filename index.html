@@ -680,31 +680,55 @@ async function fetchFundamentals(symbol){
   try{const data=await fetchJSON(url);return data?.quoteSummary?.result?.[0]||null}catch{return null}
 }
 
-async function fetchDividendCalendar(symbol){
+async function fetchDividendCalendar(symbol, cachedDivs){
+  // cachedDivs: [{ts,amount}] already in dataCache from chart v8 API (last 1Y)
+  const past=[...(cachedDivs||[])].sort((a,b)=>b.ts-a.ts);
+
+  // Estimate payment frequency from historical gaps
+  let freqDays=null, freqLabel=null;
+  if(past.length>=2){
+    const sorted=[...past].sort((a,b)=>a.ts-b.ts);
+    const diffs=sorted.slice(1).map((d,i)=>d.ts-sorted[i].ts);
+    const avg=diffs.reduce((a,b)=>a+b,0)/diffs.length;
+    freqDays=Math.round(avg/86400);
+    freqLabel=freqDays<=35?'Monthly':freqDays<=100?'Quarterly':freqDays<=200?'Semi-annual':'Annual';
+  }
+
+  const now=Date.now()/1000;
+  const in180d=now+180*24*3600;
+  const in90d=now+90*24*3600;
+  let rate=null,yld=null,exRaw=null;
+
   try{
-    const url=`https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=calendarEvents,summaryDetail`;
+    const url=`https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=summaryDetail`;
     const data=await fetchJSON(url);
-    const r=data?.quoteSummary?.result?.[0];
-    if(!r)return null;
-    const cal=r.calendarEvents||{};
-    const sd=r.summaryDetail||{};
-    const exRaw=cal.exDividendDate?.raw||sd.exDividendDate?.raw;
-    const payRaw=cal.dividendDate?.raw;
-    const rate=sd.dividendRate?.raw;
-    const yld=sd.dividendYield?.raw;
-    const freq=sd.dividendFrequency||null; // 0=annual,1=annual,2=semi,4=quarterly,12=monthly
-    const freqLabel={1:'Annual',2:'Semi-annual',4:'Quarterly',12:'Monthly'};
-    const now=Date.now()/1000;
-    const in90d=now+90*24*3600;
-    const upcoming=[];
-    if(exRaw&&exRaw>now&&exRaw<=in90d) upcoming.push({type:'ex',ts:exRaw,label:'Ex-dividend date'});
-    else if(exRaw&&exRaw>now) upcoming.push({type:'ex',ts:exRaw,label:'Ex-dividend date',beyond90:true});
-    if(payRaw&&payRaw>now&&payRaw<=in90d) upcoming.push({type:'pay',ts:payRaw,label:'Payment date'});
-    else if(payRaw&&payRaw>now) upcoming.push({type:'pay',ts:payRaw,label:'Payment date',beyond90:true});
-    upcoming.sort((a,b)=>a.ts-b.ts);
-    const pastDivs=Object.values(r.calendarEvents?.dividends||{}).map(d=>({ts:d.date,amount:d.amount})).sort((a,b)=>b.ts-a.ts).slice(0,8);
-    return{upcoming,rate,yld,freqLabel:freqLabel[freq]||null,pastDivs,hasDividends:!!(rate||exRaw)};
-  }catch(e){return null;}
+    const sd=data?.quoteSummary?.result?.[0]?.summaryDetail||{};
+    rate=sd.dividendRate?.raw||null;
+    yld=sd.dividendYield?.raw||null;
+    exRaw=sd.exDividendDate?.raw||null; // may be past or future
+  }catch(e){console.warn('Div cal API:',e);}
+
+  const hasDividends=!!(rate>0||yld>0||past.length>0||exRaw);
+  if(!hasDividends)return{hasDividends:false};
+
+  // Build upcoming list
+  const upcoming=[];
+  if(exRaw&&exRaw>now&&exRaw<=in180d){
+    // API returned a future ex-date
+    upcoming.push({type:'ex',ts:exRaw,label:'Ex-dividend date',beyond90:exRaw>in90d});
+  } else {
+    // Estimate next ex-date: advance last known date by frequency until in the future
+    const lastKnown=exRaw||(past[0]?.ts)||null;
+    if(lastKnown&&freqDays){
+      let next=lastKnown;
+      while(next<=now) next+=freqDays*86400;
+      if(next<=in180d){
+        upcoming.push({type:'ex',ts:next,label:'Est. ex-dividend',estimated:true,beyond90:next>in90d});
+      }
+    }
+  }
+  upcoming.sort((a,b)=>a.ts-b.ts);
+  return{upcoming,rate,yld,freqLabel,pastDivs:past.slice(0,10),hasDividends:true};
 }
 
 async function fetchBtcFund(){
@@ -2226,7 +2250,10 @@ async function runDeepAnalysis(){
     const patterns=ohlc&&ohlc.length?detectPatterns(ohlc):[];
     const trend=detectTrend(values,daPeriod);
     const sr=ohlc&&ohlc.length?findSR(ohlc):null;
-    const divCal=daAsset.type==='yahoo'?await fetchDividendCalendar(daAsset.symbol).catch(()=>null):null;
+    const existingDivs=dataCache[daAsset.id]?.dividends||[];
+    const divCal=daAsset.type==='yahoo'?await fetchDividendCalendar(daAsset.symbol,existingDivs).catch(()=>{
+      return existingDivs.length>0?{upcoming:[],pastDivs:[...existingDivs].sort((a,b)=>b.ts-a.ts).slice(0,10),hasDividends:true,freqLabel:null,rate:null,yld:null}:null;
+    }):null;
     drawDAChart(labels,values,CUR_SYM[daAsset.cur]||'',ohlc,events,sr);
     renderDAPatterns(patterns,trend,sr);
     renderDAEvents(evImpact,divCal);
@@ -2380,16 +2407,17 @@ function renderDAEvents(pastEvents,divCal){
 
   // ── DIVIDEND CALENDAR ──
   if(divCal&&divCal.hasDividends){
-    const upcoming90=divCal.upcoming.filter(d=>!d.beyond90);
+    const upcomingDivs=divCal.upcoming||[];
     html+=`<div class="div-cal-hdr">💰 Dividends${divCal.freqLabel?' · '+divCal.freqLabel:''}</div>`;
-    if(upcoming90.length){
-      html+=`<div class="ev-list" style="margin-bottom:8px">${upcoming90.map(d=>{
+    if(upcomingDivs.length){
+      html+=`<div class="ev-list" style="margin-bottom:8px">${upcomingDivs.map(d=>{
         const ms=d.ts*1000;
         const isPay=d.type==='pay';
+        const isEst=!!d.estimated;
         return`<div class="div-item">
           <div class="div-dot${isPay?' pay':''}"></div>
           <div>
-            <div class="div-type${isPay?' pay':''}">${d.label}</div>
+            <div class="div-type${isPay?' pay':''}">${d.label}${isEst?' <span style="font-size:7px;opacity:.65">(est.)</span>':''}</div>
             <div class="div-date-str">${tsToDate(d.ts)}</div>
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px">
@@ -2399,7 +2427,7 @@ function renderDAEvents(pastEvents,divCal){
         </div>`;
       }).join('')}</div>`;
     } else {
-      html+=`<div style="font-size:10px;color:var(--tdim);margin-bottom:8px;font-style:italic">No dividend dates in the next 90 days.</div>`;
+      html+=`<div style="font-size:10px;color:var(--tdim);margin-bottom:8px;font-style:italic">No upcoming dividend dates found in the next 6 months.</div>`;
     }
     // Past dividend dates (last 1Y from dataCache)
     const pastDivs=divCal.pastDivs||[];
