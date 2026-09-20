@@ -291,6 +291,20 @@
     .up-badge{display:inline-block;padding:1px 5px;border-radius:3px;font-size:8px;font-weight:700;background:rgba(255,204,68,.15);border:1px solid rgba(255,204,68,.4);color:var(--yel);letter-spacing:.05em;margin-left:5px;vertical-align:middle}
     .ev-past-hdr{font-size:8px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tdim);margin:10px 0 5px;display:flex;align-items:center;gap:6px}
     .ev-past-hdr::after{content:'';flex:1;height:1px;background:var(--bdr2)}
+    /* Dividend calendar */
+    .div-cal-hdr{font-size:8px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--grn);margin-bottom:5px;display:flex;align-items:center;gap:6px}
+    .div-cal-hdr::after{content:'';flex:1;height:1px;background:rgba(0,230,118,.2)}
+    .div-item{display:grid;grid-template-columns:10px 1fr auto;gap:9px;align-items:center;padding:7px 10px;background:var(--sur2);border-radius:var(--rsm);border:1px solid rgba(0,230,118,.15)}
+    .div-dot{width:8px;height:8px;border-radius:50%;background:var(--grn);flex-shrink:0}
+    .div-dot.pay{background:var(--acc)}
+    .div-type{font-size:10px;font-weight:600;color:var(--grn)}
+    .div-type.pay{color:var(--acc)}
+    .div-date-str{font-family:var(--mono);font-size:9px;color:var(--tdim);margin-top:1px}
+    .div-countdown{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--grn);white-space:nowrap}
+    .div-countdown.pay{color:var(--acc)}
+    .div-countdown-lbl{font-size:7.5px;color:var(--tdim);white-space:nowrap}
+    .div-past-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px}
+    .div-past-chip{padding:2px 7px;border-radius:3px;font-size:8px;font-family:var(--mono);background:var(--sur3);border:1px solid var(--bdr);color:var(--tdim)}
     .ev-legend{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px}
     .ev-leg-item{display:flex;align-items:center;gap:5px;font-size:9px;color:var(--tdim)}
     .ev-leg-dot{width:8px;height:8px;border-radius:50%}
@@ -666,6 +680,33 @@ async function fetchFundamentals(symbol){
   try{const data=await fetchJSON(url);return data?.quoteSummary?.result?.[0]||null}catch{return null}
 }
 
+async function fetchDividendCalendar(symbol){
+  try{
+    const url=`https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=calendarEvents,summaryDetail`;
+    const data=await fetchJSON(url);
+    const r=data?.quoteSummary?.result?.[0];
+    if(!r)return null;
+    const cal=r.calendarEvents||{};
+    const sd=r.summaryDetail||{};
+    const exRaw=cal.exDividendDate?.raw||sd.exDividendDate?.raw;
+    const payRaw=cal.dividendDate?.raw;
+    const rate=sd.dividendRate?.raw;
+    const yld=sd.dividendYield?.raw;
+    const freq=sd.dividendFrequency||null; // 0=annual,1=annual,2=semi,4=quarterly,12=monthly
+    const freqLabel={1:'Annual',2:'Semi-annual',4:'Quarterly',12:'Monthly'};
+    const now=Date.now()/1000;
+    const in90d=now+90*24*3600;
+    const upcoming=[];
+    if(exRaw&&exRaw>now&&exRaw<=in90d) upcoming.push({type:'ex',ts:exRaw,label:'Ex-dividend date'});
+    else if(exRaw&&exRaw>now) upcoming.push({type:'ex',ts:exRaw,label:'Ex-dividend date',beyond90:true});
+    if(payRaw&&payRaw>now&&payRaw<=in90d) upcoming.push({type:'pay',ts:payRaw,label:'Payment date'});
+    else if(payRaw&&payRaw>now) upcoming.push({type:'pay',ts:payRaw,label:'Payment date',beyond90:true});
+    upcoming.sort((a,b)=>a.ts-b.ts);
+    const pastDivs=Object.values(r.calendarEvents?.dividends||{}).map(d=>({ts:d.date,amount:d.amount})).sort((a,b)=>b.ts-a.ts).slice(0,8);
+    return{upcoming,rate,yld,freqLabel:freqLabel[freq]||null,pastDivs,hasDividends:!!(rate||exRaw)};
+  }catch(e){return null;}
+}
+
 async function fetchBtcFund(){
   try{
     const [cg,fng]=await Promise.allSettled([
@@ -983,12 +1024,10 @@ const DIV_PLUGIN={
       ctx.lineTo(x-4,chartArea.top+9);
       ctx.lineTo(x+4,chartArea.top+9);
       ctx.closePath();ctx.fill();
-      // Amount label
-      if(amount!=null){
-        ctx.font=`bold 6.5px 'JetBrains Mono',monospace`;
-        ctx.fillStyle='#00d4aa';ctx.textAlign='center';
-        ctx.fillText('÷'+amount.toFixed(2),x,chartArea.top+19);
-      }
+      // "DIV" label
+      ctx.font=`bold 6.5px 'JetBrains Mono',monospace`;
+      ctx.fillStyle='#00d4aa';ctx.textAlign='center';
+      ctx.fillText('DIV',x,chartArea.top+19);
     });
     ctx.restore();
   }
@@ -2187,9 +2226,10 @@ async function runDeepAnalysis(){
     const patterns=ohlc&&ohlc.length?detectPatterns(ohlc):[];
     const trend=detectTrend(values,daPeriod);
     const sr=ohlc&&ohlc.length?findSR(ohlc):null;
+    const divCal=daAsset.type==='yahoo'?await fetchDividendCalendar(daAsset.symbol).catch(()=>null):null;
     drawDAChart(labels,values,CUR_SYM[daAsset.cur]||'',ohlc,events,sr);
     renderDAPatterns(patterns,trend,sr);
-    renderDAEvents(evImpact);
+    renderDAEvents(evImpact,divCal);
   }catch(e){
     console.warn('Deep analysis error',e);
     document.getElementById('da-patterns').innerHTML='<div class="da-empty">Error loading data: '+e.message+'</div>';
@@ -2327,30 +2367,59 @@ function renderDAPatterns(patterns,trend,sr){
   if(el)el.innerHTML=html;
 }
 
-function renderDAEvents(pastEvents){
+function renderDAEvents(pastEvents,divCal){
   const el=document.getElementById('da-events');
   if(!el)return;
   const typeLabel={fed:'Fed Policy',geo:'Geopolitical',eco:'Economic',crypto:'Crypto',cb:'Intl. Central Bank'};
   const now=Date.now();
   const in90d=now+90*24*3600*1000;
+  function daysStr(ms){const d=Math.ceil((ms-now)/86400000);return d===0?'Today':d===1?'Tomorrow':`in ${d}d`;}
+  function tsToDate(ts){return new Date(ts*1000).toISOString().slice(0,10);}
 
-  // Upcoming events (next 90 days from MACRO_EVENTS master list)
+  let html='';
+
+  // ── DIVIDEND CALENDAR ──
+  if(divCal&&divCal.hasDividends){
+    const upcoming90=divCal.upcoming.filter(d=>!d.beyond90);
+    html+=`<div class="div-cal-hdr">💰 Dividends${divCal.freqLabel?' · '+divCal.freqLabel:''}</div>`;
+    if(upcoming90.length){
+      html+=`<div class="ev-list" style="margin-bottom:8px">${upcoming90.map(d=>{
+        const ms=d.ts*1000;
+        const isPay=d.type==='pay';
+        return`<div class="div-item">
+          <div class="div-dot${isPay?' pay':''}"></div>
+          <div>
+            <div class="div-type${isPay?' pay':''}">${d.label}</div>
+            <div class="div-date-str">${tsToDate(d.ts)}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px">
+            <span class="div-countdown${isPay?' pay':''}">${daysStr(ms)}</span>
+            <span class="div-countdown-lbl">from today</span>
+          </div>
+        </div>`;
+      }).join('')}</div>`;
+    } else {
+      html+=`<div style="font-size:10px;color:var(--tdim);margin-bottom:8px;font-style:italic">No dividend dates in the next 90 days.</div>`;
+    }
+    // Past dividend dates (last 1Y from dataCache)
+    const pastDivs=divCal.pastDivs||[];
+    if(pastDivs.length){
+      html+=`<div style="font-size:8px;color:var(--tdim);margin-bottom:4px;text-transform:uppercase;letter-spacing:.08em">Recent payments (last 1Y)</div>`;
+      html+=`<div class="div-past-row">${pastDivs.map(d=>`<span class="div-past-chip">${tsToDate(d.ts)}</span>`).join('')}</div>`;
+    }
+    html+=`<div style="height:1px;background:var(--bdr2);margin:10px 0"></div>`;
+  }
+
+  // ── UPCOMING MACRO EVENTS (next 90 days) ──
   const upcoming=MACRO_EVENTS.filter(ev=>{
     const ms=new Date(ev.date).getTime();
     return ms>now&&ms<=in90d;
   }).sort((a,b)=>a.date.localeCompare(b.date));
 
-  // Past events with impact data, sorted newest first
-  const sorted=[...pastEvents].sort((a,b)=>b.date.localeCompare(a.date));
-
-  let html='';
-
   if(upcoming.length){
-    html+=`<div class="ev-upcoming-hdr">📅 Upcoming — next 90 days</div>`;
+    html+=`<div class="ev-upcoming-hdr">📅 Macro events — next 90 days</div>`;
     html+=`<div class="ev-list" style="margin-bottom:8px">${upcoming.map(ev=>{
       const ms=new Date(ev.date).getTime();
-      const daysLeft=Math.ceil((ms-now)/86400000);
-      const dStr=daysLeft===0?'Today':daysLeft===1?'Tomorrow':`in ${daysLeft}d`;
       return`<div class="ev-item ev-upcoming">
         <div class="ev-dot ${ev.type}"></div>
         <div>
@@ -2359,15 +2428,17 @@ function renderDAEvents(pastEvents){
           <div class="ev-desc">${ev.desc}</div>
         </div>
         <div class="ev-chg">
-          <span class="ev-countdown">${dStr}</span>
+          <span class="ev-countdown">${daysStr(ms)}</span>
           <span class="ev-countdown-lbl">from today</span>
         </div>
       </div>`;
     }).join('')}</div>`;
   }
 
+  // ── PAST MACRO EVENTS with impact ──
+  const sorted=[...pastEvents].sort((a,b)=>b.date.localeCompare(a.date));
   if(sorted.length){
-    html+=`<div class="ev-past-hdr">📊 Historical impact</div>`;
+    html+=`<div class="ev-past-hdr">📊 Historical macro impact</div>`;
     html+=`<div class="ev-list">${sorted.map(ev=>{
       const chg=ev.chg5,c10=ev.chg10;
       const chgStr=chg!=null?(chg>=0?'+':'')+chg.toFixed(1)+'%':'—';
@@ -2391,7 +2462,7 @@ function renderDAEvents(pastEvents){
   }
 
   if(!html){
-    html=`<div class="da-empty">No major macro events in this window.<br><span style="font-size:9px">Select 1Y or 5Y to see event analysis.</span></div>`;
+    html=`<div class="da-empty">No dividend data or macro events in this window.</div>`;
   }
   el.innerHTML=html;
 }
