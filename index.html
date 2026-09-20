@@ -1442,25 +1442,65 @@ async function searchIsin(){
   if(raw.length<6){document.getElementById('isinStatus').textContent='Please enter a valid ISIN (minimum 6 characters).';return}
   const btn=document.getElementById('isinBtn');
   btn.disabled=true;btn.textContent='Searching…';
-  document.getElementById('isinStatus').textContent='';
+  document.getElementById('isinStatus').textContent='Searching…';
   document.getElementById('isinResults').innerHTML='';
   _pendingQuotes=[];
+
+  // Try both Yahoo Finance search variants; fuzzy=true finds European/non-US ISINs better
+  async function yahooSearch(fuzzy){
+    const url=`https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(raw)}&quotesCount=8&newsCount=0&enableFuzzyQuery=${fuzzy}&lang=en-US`;
+    // Also try query2 directly via proxy if query1 path fails
+    const enc=encodeURIComponent(url);
+    const enc2=encodeURIComponent(`https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(raw)}&quotesCount=8&newsCount=0&enableFuzzyQuery=${fuzzy}&lang=en-US`);
+    const tries=[
+      ()=>fetch(url,{signal:mkAbort(7000)}).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}),
+      ()=>tryGet(`https://corsproxy.io/?${enc}`,11000),
+      ()=>tryGet(`https://api.allorigins.win/get?url=${enc}`,13000).then(d=>{
+        if(d&&typeof d.contents==='string')return JSON.parse(d.contents);
+        throw new Error('allorigins empty');
+      }),
+      ()=>tryGet(`https://corsproxy.io/?${enc2}`,11000),
+      ()=>tryGet(`https://api.allorigins.win/get?url=${enc2}`,13000).then(d=>{
+        if(d&&typeof d.contents==='string')return JSON.parse(d.contents);
+        throw new Error('allorigins2 empty');
+      }),
+    ];
+    let lastErr;
+    for(const fn of tries){
+      try{
+        const data=await fn();
+        const quotes=(data?.quotes||[]).filter(q=>q.symbol&&q.quoteType&&q.quoteType!=='OPTION');
+        if(quotes.length)return quotes;
+      }catch(e){lastErr=e}
+    }
+    return[];
+  }
+
   try{
-    const url=`https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(raw)}&quotesCount=8&newsCount=0&enableFuzzyQuery=false`;
-    const data=await fetchJSON(url);
-    const quotes=(data?.quotes||[]).filter(q=>q.symbol&&q.quoteType&&q.quoteType!=='OPTION');
-    if(!quotes.length){document.getElementById('isinStatus').textContent='No results found. Try the ticker symbol directly (e.g. AAPL, MSFT).';return}
+    // Pass 1: strict ISIN match
+    let quotes=await yahooSearch(false);
+    // Pass 2: fuzzy — better for European ETF ISINs like IE00B3RBWM25
+    if(!quotes.length){
+      document.getElementById('isinStatus').textContent='Broadening search…';
+      quotes=await yahooSearch(true);
+    }
+    if(!quotes.length){
+      document.getElementById('isinStatus').innerHTML=
+        'No results found for <strong>'+raw+'</strong>. '+
+        'Try the ticker symbol directly (e.g. SWDA, EUNL, AAPL).';
+      btn.disabled=false;btn.textContent='🔍 Search';
+      return;
+    }
     _pendingQuotes=quotes.slice(0,6);
-    // Check if results span multiple currencies
     const currencies=[...new Set(_pendingQuotes.map(q=>q.currency||'').filter(Boolean))];
     const multiCur=currencies.length>1;
     document.getElementById('isinStatus').innerHTML=
       multiCur
         ? `<span style="color:var(--yel)">⚠ Multiple currencies found.</span> Select the exchange and currency you want:`
-        : 'Select the correct instrument:';
+        : `Found <strong>${_pendingQuotes.length}</strong> result${_pendingQuotes.length>1?'s':''}. Select the correct instrument:`;
     document.getElementById('isinResults').innerHTML=_pendingQuotes.map((q,i)=>{
       const cur=q.currency||'';
-      const name=q.shortname||q.longname||q.symbol;
+      const name=(q.shortname||q.longname||q.symbol).replace(/</g,'&lt;').replace(/>/g,'&gt;');
       const exch=q.exchange||'';
       const type=q.quoteType||'';
       return`<div class="ires" onclick="addCustomAssetByIdx(${i})">
@@ -1473,7 +1513,7 @@ async function searchIsin(){
       </div>`;
     }).join('');
   }catch(e){
-    document.getElementById('isinStatus').textContent='Search failed: '+e.message+'. Try again or enter the ticker directly.';
+    document.getElementById('isinStatus').textContent='Search error: '+e.message+'. Please try again.';
   }
   btn.disabled=false;btn.textContent='🔍 Search';
 }
