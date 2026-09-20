@@ -1,3 +1,4 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -676,8 +677,63 @@ async function fetchCoinGecko(){
 }
 
 async function fetchFundamentals(symbol){
-  const url=`https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=summaryDetail,defaultKeyStatistics,financialData`;
-  try{const data=await fetchJSON(url);return data?.quoteSummary?.result?.[0]||null}catch{return null}
+  // Strategy 1: Yahoo v10 quoteSummary (full fundamentals — margins, ROE, debt/equity, etc.)
+  // Includes 'price' module so regularMarketPrice is always present for 52W Position calc
+  const v10url=`https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=price,summaryDetail,defaultKeyStatistics,financialData`;
+  try{
+    const data=await fetchJSON(v10url);
+    const r=data?.quoteSummary?.result?.[0];
+    // Accept result only if it has at least one non-empty module
+    if(r&&(r.summaryDetail||r.defaultKeyStatistics||r.financialData||r.price))return r;
+  }catch(e){console.warn('v10 fund failed for',symbol,':',e.message);}
+
+  // Strategy 2: Yahoo v7 quote API — more CORS-friendly, flat JSON (no .raw wrapper)
+  // Covers: 52W range, P/E, EPS, P/B, beta, market cap, volume, MAs, dividend yield
+  const v7url=`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}`;
+  try{
+    const data=await fetchJSON(v7url);
+    const q=data?.quoteResponse?.result?.[0];
+    if(!q)return null;
+    // Normalize flat v7 numbers to v10's {raw:x} format so buildYahooFund works unchanged
+    const w=(n)=>n!=null&&!isNaN(n)?{raw:n}:null;
+    return{
+      _source:'v7',
+      price:{
+        regularMarketPrice:w(q.regularMarketPrice),
+        previousClose:w(q.regularMarketPreviousClose),
+      },
+      summaryDetail:{
+        fiftyTwoWeekHigh:w(q.fiftyTwoWeekHigh),
+        fiftyTwoWeekLow:w(q.fiftyTwoWeekLow),
+        regularMarketPrice:w(q.regularMarketPrice),
+        previousClose:w(q.regularMarketPreviousClose),
+        trailingPE:w(q.trailingPE),
+        forwardPE:w(q.forwardPE),
+        marketCap:w(q.marketCap),
+        dividendYield:w(q.trailingAnnualDividendYield),
+        beta:w(q.beta),
+        averageVolume:w(q.averageVolume||q.averageDailyVolume3Month),
+        averageVolume10days:w(q.averageVolume10Day),
+        fiftyDayAverage:w(q.fiftyDayAverage),
+        twoHundredDayAverage:w(q.twoHundredDayAverage),
+      },
+      defaultKeyStatistics:{
+        trailingPE:w(q.trailingPE),
+        forwardPE:w(q.forwardPE),
+        priceToBook:w(q.priceToBook),
+        trailingEps:w(q.epsTrailingTwelveMonths),
+        forwardEps:w(q.epsForward),
+        beta:w(q.beta),
+      },
+      financialData:{
+        profitMargins:w(q.profitMargins),
+        returnOnEquity:w(q.returnOnEquity),
+        debtToEquity:w(q.debtToEquity),
+        revenueGrowth:w(q.revenueGrowth),
+      },
+    };
+  }catch(e){console.warn('v7 fund also failed for',symbol,':',e.message);}
+  return null;
 }
 
 async function fetchDividendCalendar(symbol, cachedDivs){
@@ -2650,3 +2706,5 @@ setInterval(()=>{document.getElementById('clock').textContent=new Date().toLocal
 </script>
 </body>
 </html>
+
+</body></html>
