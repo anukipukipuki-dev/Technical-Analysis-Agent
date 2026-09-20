@@ -2433,7 +2433,7 @@ function renderDAEvents(pastEvents,divCal){
     const pastDivs=divCal.pastDivs||[];
     if(pastDivs.length){
       html+=`<div style="font-size:8px;color:var(--tdim);margin-bottom:4px;text-transform:uppercase;letter-spacing:.08em">Recent payments (last 1Y)</div>`;
-      html+=`<div class="div-past-row">${pastDivs.map(d=>`<span class="div-past-chip">${tsToDate(d.ts)}</span>`).join('')}</div>`;
+      html+=`<div class="div-past-row">${pastDivs.map(d=>`<span class="div-past-chip">${tsToDate(d.ts)}${d.amount!=null?` · <b>${d.amount.toFixed(4).replace(/\.?0+$/,'')}</b>`:''}</span>`).join('')}</div>`;
     }
     html+=`<div style="height:1px;background:var(--bdr2);margin:10px 0"></div>`;
   }
