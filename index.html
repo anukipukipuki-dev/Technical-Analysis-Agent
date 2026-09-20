@@ -835,14 +835,20 @@ async function getChartData(asset,period){
 
   if(['1W','1M','3M','1Y'].includes(period)){
     if(!d||!d.closes.length)throw new Error('No cached data');
-    const slices={'1W':7,'1M':22,'3M':65,'1Y':252};
-    const n=slices[period];
-    values=d.closes.slice(-n);
-    const ts=d.timestamps?d.timestamps.slice(-n):null;
+    // Date-based filtering so any data granularity (Yahoo daily, CoinGecko 3-day candles) works correctly
+    const secs={'1W':7*86400,'1M':30*86400,'3M':91*86400,'1Y':365*86400};
+    const cutoff=Math.floor(Date.now()/1000)-(secs[period]||365*86400);
+    let startIdx=0;
+    if(d.timestamps&&d.timestamps.length){
+      const fi=d.timestamps.findIndex(t=>t>=cutoff);
+      startIdx=fi<0?0:fi;
+    }
+    values=d.closes.slice(startIdx);
+    const ts=d.timestamps?d.timestamps.slice(startIdx):null;
     labels=ts?ts.map(t=>fmtDate(t,period)):values.map((_,i)=>`D${i+1}`);
     if(ts)timestamps=ts;
     if(d.opens&&d.highs&&d.lows){
-      const opens=d.opens.slice(-n),highs=d.highs.slice(-n),lows=d.lows.slice(-n);
+      const opens=d.opens.slice(startIdx),highs=d.highs.slice(startIdx),lows=d.lows.slice(startIdx);
       ohlc=values.map((c,i)=>({o:opens[i]??c,h:highs[i]??c,l:lows[i]??c,c}));
     }
   } else if(period==='1H'){
@@ -866,32 +872,53 @@ async function getChartData(asset,period){
       timestamps=data.prices.map(([t])=>Math.floor(t/1000));
     }
   } else if(period==='5Y'){
+    let fetched=false;
     if(asset.type==='yahoo'){
-      const url=`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(asset.symbol)}?range=5y&interval=1wk&includePrePost=false`;
-      const data=await fetchJSON(url);
-      const res=data.chart.result[0];
-      const q=res.indicators.quote[0];
-      const rawT=res.timestamp||[];
-      const rows=rawT.map((t,i)=>({t,o:q.open?.[i],h:q.high?.[i],l:q.low?.[i],c:q.close?.[i]}))
-        .filter(r=>r.c!=null&&!isNaN(r.c));
-      labels=rows.map(r=>fmtDate(r.t,'5Y'));
-      values=rows.map(r=>r.c);
-      ohlc=rows.map(r=>({o:r.o??r.c,h:r.h??r.c,l:r.l??r.c,c:r.c}));
-      timestamps=rows.map(r=>r.t);
-    } else {
-      // Group daily market_chart data into weekly candles
-      const data=await tryGet('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=1825',15000);
-      const buckets={};
-      data.prices.forEach(([ts,p])=>{
-        const wk=Math.floor(ts/(7*24*3600*1000));
-        if(!buckets[wk])buckets[wk]={ts,o:p,h:p,l:p,c:p};
-        else{buckets[wk].h=Math.max(buckets[wk].h,p);buckets[wk].l=Math.min(buckets[wk].l,p);buckets[wk].c=p}
-      });
-      const weekly=Object.values(buckets).sort((a,b)=>a.ts-b.ts);
-      labels=weekly.map(r=>fmtDate(Math.floor(r.ts/1000),'5Y'));
-      values=weekly.map(r=>r.c);
-      ohlc=weekly.map(r=>({o:r.o,h:r.h,l:r.l,c:r.c}));
-      timestamps=weekly.map(r=>Math.floor(r.ts/1000));
+      try{
+        const url=`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(asset.symbol)}?range=5y&interval=1wk&includePrePost=false`;
+        const data=await fetchJSON(url);
+        const res=data.chart.result[0];
+        const q=res.indicators.quote[0];
+        const rawT=res.timestamp||[];
+        const rows=rawT.map((t,i)=>({t,o:q.open?.[i],h:q.high?.[i],l:q.low?.[i],c:q.close?.[i]}))
+          .filter(r=>r.c!=null&&!isNaN(r.c));
+        if(rows.length>50){
+          labels=rows.map(r=>fmtDate(r.t,'5Y'));
+          values=rows.map(r=>r.c);
+          ohlc=rows.map(r=>({o:r.o??r.c,h:r.h??r.c,l:r.l??r.c,c:r.c}));
+          timestamps=rows.map(r=>r.t);
+          fetched=true;
+        }
+      }catch(e){console.warn('5Y Yahoo fetch failed, using 1Y fallback',e)}
+    }else{
+      try{
+        const data=await tryGet('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=1825',15000);
+        const buckets={};
+        data.prices.forEach(([ts,p])=>{
+          const wk=Math.floor(ts/(7*24*3600*1000));
+          if(!buckets[wk])buckets[wk]={ts,o:p,h:p,l:p,c:p};
+          else{buckets[wk].h=Math.max(buckets[wk].h,p);buckets[wk].l=Math.min(buckets[wk].l,p);buckets[wk].c=p}
+        });
+        const weekly=Object.values(buckets).sort((a,b)=>a.ts-b.ts);
+        if(weekly.length>50){
+          labels=weekly.map(r=>fmtDate(Math.floor(r.ts/1000),'5Y'));
+          values=weekly.map(r=>r.c);
+          ohlc=weekly.map(r=>({o:r.o,h:r.h,l:r.l,c:r.c}));
+          timestamps=weekly.map(r=>Math.floor(r.ts/1000));
+          fetched=true;
+        }
+      }catch(e){console.warn('5Y CoinGecko fetch failed, using 1Y fallback',e)}
+    }
+    if(!fetched){
+      // Fallback: show all available 1Y cached data
+      if(!d||!d.closes.length)throw new Error('No cached data for fallback');
+      values=d.closes;
+      const ts2=d.timestamps||null;
+      labels=ts2?ts2.map(t=>fmtDate(t,'5Y')):values.map((_,i)=>`D${i+1}`);
+      if(ts2)timestamps=ts2;
+      if(d.opens&&d.highs&&d.lows)ohlc=values.map((c,i)=>({o:d.opens[i]??c,h:d.highs[i]??c,l:d.lows[i]??c,c}));
+      // Don't cache the fallback — retry API next time
+      return{labels,values,ohlc,timestamps,is1YFallback:true};
     }
   }
 
@@ -1618,6 +1645,17 @@ const MACRO_EVENTS=[
   {date:'2025-04-02',title:'"Liberation Day" Tariffs',desc:'Trump announces sweeping reciprocal tariffs on 70+ countries — largest since the 1930s',type:'eco'},
   {date:'2025-04-09',title:'Tariff Pause 90 Days',desc:'90-day pause on most tariffs; S&P 500 surges 9.5% — one of largest single-day gains ever',type:'eco'},
   {date:'2025-06-18',title:'Fed -25bp',desc:'Fed resumes rate cuts citing tariff-driven economic slowdown and disinflation',type:'fed'},
+  // FOMC meeting dates (scheduled) — Q3/Q4 2025 and 2026
+  {date:'2025-07-30',title:'FOMC Jul 2025',desc:'Fed rate decision and economic assessment; market focus on tariff-inflation tradeoff',type:'fed'},
+  {date:'2025-09-17',title:'FOMC Sep 2025',desc:'September Fed meeting; updated projections released — key for Q4 rate expectations',type:'fed'},
+  {date:'2025-11-05',title:'FOMC Nov 2025',desc:'November rate decision; labor market and CPI data shape the vote outcome',type:'fed'},
+  {date:'2025-12-10',title:'FOMC Dec 2025',desc:'Year-end meeting; 2026 dot-plot projections and rate path guidance published',type:'fed'},
+  {date:'2026-01-28',title:'FOMC Jan 2026',desc:'First Fed decision of 2026; sets policy tone for the year ahead',type:'fed'},
+  {date:'2026-03-18',title:'FOMC Mar 2026',desc:'March meeting with quarterly SEP; rate forecasts and economic projections',type:'fed'},
+  {date:'2026-05-06',title:'FOMC May 2026',desc:'May rate decision; mid-year read on inflation and employment trajectory',type:'fed'},
+  {date:'2026-06-17',title:'FOMC Jun 2026',desc:'June SEP update; dot-plot revision and press conference widely watched',type:'fed'},
+  {date:'2026-07-29',title:'FOMC Jul 2026',desc:'July rate decision; H1 2026 economic performance review',type:'fed'},
+  {date:'2026-09-17',title:'FOMC Sep 2026',desc:'September meeting; Q3 assessment and year-end guidance for markets',type:'fed'},
 ];
 
 // ═══════════════════════════════════════════════════
@@ -1809,13 +1847,26 @@ async function runDeepAnalysis(){
   document.getElementById('da-events').innerHTML='<div class="da-empty">Analyzing…</div>';
   try{
     const cd=await getChartData(daAsset,daPeriod);
-    const{labels,values,ohlc,timestamps}=cd;
+    const{labels,values,ohlc,timestamps,is1YFallback}=cd;
+    // Show fallback notice when 5Y API failed
+    const ptabsWrap=document.getElementById('da-ptabs-wrap');
+    if(ptabsWrap){
+      const old=ptabsWrap.querySelector('.da-fallback-note');
+      if(old)old.remove();
+      if(is1YFallback){
+        const note=document.createElement('span');
+        note.className='da-fallback-note';
+        note.style.cssText='font-size:8px;color:var(--yel);margin-left:4px;white-space:nowrap';
+        note.textContent='⚠ 1Y only';
+        ptabsWrap.appendChild(note);
+      }
+    }
     const events=getRelevantEvents(timestamps);
     const evImpact=computeEventImpact(ohlc,values,events);
     const patterns=ohlc&&ohlc.length?detectPatterns(ohlc):[];
     const trend=detectTrend(values,daPeriod);
     const sr=ohlc&&ohlc.length?findSR(ohlc):null;
-    drawDAChart(labels,values,CUR_SYM[daAsset.cur]||'',ohlc,events);
+    drawDAChart(labels,values,CUR_SYM[daAsset.cur]||'',ohlc,events,sr);
     renderDAPatterns(patterns,trend,sr);
     renderDAEvents(evImpact);
   }catch(e){
@@ -1826,22 +1877,48 @@ async function runDeepAnalysis(){
   if(wrap)wrap.classList.remove('cloading');
 }
 
-function drawDAChart(labels,values,cur,ohlc,events){
+function drawDAChart(labels,values,cur,ohlc,events,sr){
   const c=document.getElementById('da-chart');
   if(!c)return;
   if(daChart){try{daChart.destroy()}catch{}daChart=null}
-  // Set chart wrapper width based on period so each candle is clearly visible
-  // Chart.js (responsive:true) will fill this width, triggering horizontal scroll in the outer container
+  // Dynamically size chart wrapper so candles are clearly visible (enables horizontal scroll)
   (function(){
     const scrollOuter=c.closest('.da-chart-scroll-outer');
     const outerW=scrollOuter?Math.floor(scrollOuter.getBoundingClientRect().width):600;
-    // Pixels per bar by period — shorter periods get wider bars for detail
     const PX={'1W':48,'1M':20,'3M':10,'1Y':6,'5Y':3};
     const pxPerBar=PX[daPeriod]||6;
     const chartW=Math.max(outerW,labels.length*pxPerBar,420);
     const wrap=document.getElementById('da-chart-wrap');
     if(wrap)wrap.style.width=chartW+'px';
   })();
+  // Support / Resistance horizontal line plugin
+  const srPlugin={
+    id:'daSR',
+    afterDatasetsDraw(chart){
+      if(!sr)return;
+      const{ctx,scales:{y:yS},chartArea}=chart;
+      if(!chartArea||!yS)return;
+      const drawLevel=(level,color,tag)=>{
+        const y=yS.getPixelForValue(level);
+        if(y<chartArea.top-2||y>chartArea.bottom+2)return;
+        ctx.save();
+        ctx.strokeStyle=color;ctx.lineWidth=1;ctx.globalAlpha=0.65;ctx.setLineDash([5,4]);
+        ctx.beginPath();ctx.moveTo(chartArea.left,y);ctx.lineTo(chartArea.right,y);ctx.stroke();
+        ctx.setLineDash([]);ctx.globalAlpha=1;
+        // Label pill on right edge
+        const lbl=`${tag} ${fmt(level)}`;
+        ctx.font=`bold 7.5px 'JetBrains Mono',monospace`;
+        const tw=ctx.measureText(lbl).width+8;
+        ctx.fillStyle=color+'22';ctx.strokeStyle=color;ctx.lineWidth=0.7;
+        ctx.beginPath();ctx.roundRect(chartArea.right-tw-1,y-7,tw,13,2);ctx.fill();ctx.stroke();
+        ctx.fillStyle=color;ctx.textAlign='right';
+        ctx.fillText(lbl,chartArea.right-5,y+3.5);
+        ctx.restore();
+      };
+      (sr.supports||[]).forEach(s=>drawLevel(s.level,'#00d070','S'));
+      (sr.resistances||[]).forEach(r=>drawLevel(r.level,'#ff6680','R'));
+    }
+  };
   const evPlugin={
     id:'daEvt',
     afterDatasetsDraw(chart){
@@ -1869,7 +1946,7 @@ function drawDAChart(labels,values,cur,ohlc,events){
     const lows=ohlc.map(r=>r.l),highs=ohlc.map(r=>r.h);
     const mn=Math.min(...lows),mx=Math.max(...highs),pad=(mx-mn)*.03||1;
     daChart=new Chart(c,{
-      type:'bar',plugins:[CANDLE_PLUGIN,evPlugin],
+      type:'bar',plugins:[CANDLE_PLUGIN,evPlugin,srPlugin],
       data:{labels,datasets:[{data:ohlc.map(r=>[r.l,r.h]),backgroundColor:'transparent',borderColor:'transparent',borderWidth:0,borderSkipped:false}]},
       options:{responsive:true,maintainAspectRatio:false,animation:{duration:200},interaction:{intersect:false,mode:'index'},
         plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(4,8,20,.94)',borderColor:'#1a3356',borderWidth:1,titleColor:'#7a9abc',bodyColor:'#e8f4ff',padding:{x:11,y:7},displayColors:false,callbacks:{
@@ -1885,7 +1962,7 @@ function drawDAChart(labels,values,cur,ohlc,events){
     const isUp=(values.at(-1)??0)>=(values[0]??0);
     const clr=isUp?'#00e676':'#ff3355';
     const mn=Math.min(...values),mx=Math.max(...values),pad=(mx-mn)*.04||1;
-    daChart=new Chart(c,{type:'line',plugins:[GRAD_PLUGIN,evPlugin],
+    daChart=new Chart(c,{type:'line',plugins:[GRAD_PLUGIN,evPlugin,srPlugin],
       data:{labels,datasets:[{data:values,borderColor:clr,borderWidth:1.8,pointRadius:0,tension:.1,fill:true,backgroundColor:'transparent'}]},
       options:{responsive:true,maintainAspectRatio:false,animation:{duration:200},interaction:{intersect:false,mode:'index'},
         plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(4,8,20,.92)',borderColor:'#1a3356',borderWidth:1,titleColor:'#4a6880',bodyColor:'#e8f4ff',padding:{x:10,y:6},displayColors:false,callbacks:{title:i=>i[0].label,label:i=>` ${cur}${fmt(i.raw)}`}}},
