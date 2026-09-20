@@ -204,6 +204,74 @@
     footer{background:var(--sur);border-top:1px solid var(--bdr);padding:9px 20px;display:flex;justify-content:space-between;align-items:center;font-size:10px;color:var(--tdim);flex-wrap:wrap;gap:5px;margin-top:20px}
     footer a{color:var(--acc);text-decoration:none}
 
+    /* ── DEEP ANALYSIS MODAL ── */
+    .da-overlay{position:fixed;inset:0;background:rgba(2,6,14,.85);z-index:500;backdrop-filter:blur(3px)}
+    .da-panel{position:fixed;top:0;right:0;bottom:0;width:min(920px,100vw);background:var(--bg);border-left:1px solid var(--bdr);z-index:501;display:flex;flex-direction:column;overflow:hidden;box-shadow:-10px 0 50px rgba(0,0,0,.9)}
+    .da-hdr{display:flex;align-items:center;justify-content:space-between;padding:11px 18px;border-bottom:1px solid var(--bdr);background:var(--sur);flex-shrink:0;gap:10px}
+    .da-hdr-l{display:flex;align-items:center;gap:10px}
+    .da-ico{width:30px;height:30px;background:linear-gradient(135deg,#8866ff,#00d4aa);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+    .da-name{font-size:15px;font-weight:700;color:var(--tbri)}
+    .da-sub{font-size:9px;color:var(--tdim);margin-top:1px}
+    .da-close{background:var(--sur2);border:1px solid var(--bdr);color:var(--tdim);width:28px;height:28px;border-radius:50%;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+    .da-close:hover{background:rgba(255,51,85,.15);border-color:var(--red);color:var(--red)}
+    .da-body{overflow-y:auto;flex:1;padding:14px 18px;display:flex;flex-direction:column;gap:12px}
+    .da-ptabs{display:flex;gap:4px;flex-wrap:wrap}
+    .da-ptab{padding:4px 13px;border-radius:var(--rsm);font-size:10px;font-weight:600;font-family:var(--mono);border:1px solid var(--bdr);background:transparent;color:var(--tdim);cursor:pointer;transition:all .15s}
+    .da-ptab:hover{color:var(--txt);border-color:var(--tdim)}
+    .da-ptab.active{background:var(--adim);border-color:var(--acc);color:var(--acc)}
+    .da-sec{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--r);overflow:hidden}
+    .da-sec-hdr{padding:8px 13px;background:var(--sur2);border-bottom:1px solid var(--bdr2);font-size:9px;text-transform:uppercase;letter-spacing:.09em;color:var(--tdim);display:flex;align-items:center;gap:6px}
+    .da-sec-hdr em{color:var(--acc);font-style:normal}
+    .da-sec-body{padding:12px 13px}
+    .da-chart-wrap{height:310px;position:relative}
+    .da-chart-wrap.cloading::after{content:'Loading…';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--tdim);background:rgba(4,8,15,.7);border-radius:4px}
+    /* MTF grid */
+    .mtf-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+    .mtf-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 6px;background:var(--sur2);border-radius:var(--rsm);border:1px solid var(--bdr2)}
+    .mtf-period{font-size:8px;text-transform:uppercase;letter-spacing:.07em;color:var(--tdim)}
+    .mtf-pct{font-size:13px;font-weight:700;font-family:var(--mono)}
+    .mtf-pct.up{color:var(--grn)} .mtf-pct.dn{color:var(--red)} .mtf-pct.neu{color:var(--yel)}
+    .mtf-dir{font-size:7.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--tdim)}
+    /* Patterns */
+    .pat-list{display:flex;flex-direction:column;gap:5px}
+    .pat-item{display:flex;align-items:flex-start;gap:9px;padding:7px 10px;border-radius:var(--rsm);background:var(--sur2);border:1px solid var(--bdr2)}
+    .pat-badge{padding:2px 7px;border-radius:3px;font-size:8px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;flex-shrink:0;margin-top:1px}
+    .pat-badge.bull{background:#001f17;color:#00d070;border:1px solid #003d28}
+    .pat-badge.bear{background:#2a0010;color:#ff6680;border:1px solid #4d001e}
+    .pat-badge.neu{background:#1f1a00;color:#ffcc44;border:1px solid #332a00}
+    .pat-name{font-size:11px;font-weight:600;color:var(--tbri)}
+    .pat-ago{font-size:9px;color:var(--tdim);font-family:var(--mono)}
+    .pat-desc{font-size:9px;color:var(--txt);line-height:1.45;margin-top:2px}
+    /* Support / Resistance */
+    .sr-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+    .sr-item{padding:7px 10px;background:var(--sur2);border-radius:var(--rsm);border-left:3px solid var(--bdr)}
+    .sr-item.sup{border-left-color:var(--grn)} .sr-item.res{border-left-color:var(--red)}
+    .sr-lbl{font-size:8px;text-transform:uppercase;letter-spacing:.06em;color:var(--tdim)}
+    .sr-val{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--tbri)}
+    .sr-tests{font-size:8px;color:var(--tdim)}
+    /* Trend */
+    .trend-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:var(--rsm);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+    .trend-chip.up{background:#001f17;color:#00d070;border:1px solid #003d28}
+    .trend-chip.dn{background:#2a0010;color:#ff6680;border:1px solid #4d001e}
+    .trend-chip.side{background:#1f1a00;color:#ffcc44;border:1px solid #332a00}
+    /* Macro events */
+    .ev-list{display:flex;flex-direction:column;gap:5px}
+    .ev-item{display:grid;grid-template-columns:10px 1fr auto;gap:9px;align-items:start;padding:8px 10px;background:var(--sur2);border-radius:var(--rsm);border:1px solid var(--bdr2)}
+    .ev-dot{width:8px;height:8px;border-radius:50%;margin-top:3px;flex-shrink:0}
+    .ev-dot.fed{background:#00d4aa} .ev-dot.geo{background:#ff9933} .ev-dot.crypto{background:#8866ff} .ev-dot.eco{background:#ffcc44}
+    .ev-title{font-size:10px;font-weight:600;color:var(--tbri)}
+    .ev-date{font-size:8px;color:var(--tdim);font-family:var(--mono);margin-top:1px}
+    .ev-desc{font-size:9px;color:var(--txt);margin-top:2px;line-height:1.4}
+    .ev-chg{display:flex;flex-direction:column;align-items:flex-end;gap:1px;flex-shrink:0}
+    .ev-chg-v{font-family:var(--mono);font-size:12px;font-weight:600;white-space:nowrap}
+    .ev-chg-l{font-size:7.5px;color:var(--tdim);white-space:nowrap}
+    .ev-legend{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+    .ev-leg-item{display:flex;align-items:center;gap:5px;font-size:9px;color:var(--tdim)}
+    .ev-leg-dot{width:8px;height:8px;border-radius:50%}
+    .da-empty{color:var(--tdim);font-size:11px;font-style:italic;text-align:center;padding:12px}
+    @keyframes da-in{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+    #da-modal:not([hidden]) .da-panel{animation:da-in .22s cubic-bezier(.25,.8,.25,1) both}
+
     /* ── RESPONSIVE ── */
     @media(max-width:560px){
       .hdr,.sbar,.tabs,.content{padding-left:13px;padding-right:13px}
@@ -315,6 +383,61 @@
     </div>
   </div>
 </main>
+
+<!-- DEEP ANALYSIS MODAL -->
+<div id="da-modal" hidden>
+  <div class="da-overlay" onclick="closeDeepAnalysis()"></div>
+  <div class="da-panel">
+    <div class="da-hdr">
+      <div class="da-hdr-l">
+        <div class="da-ico">🔬</div>
+        <div>
+          <div class="da-name" id="da-asset-name">—</div>
+          <div class="da-sub" id="da-asset-sub">—</div>
+        </div>
+      </div>
+      <button class="da-close" onclick="closeDeepAnalysis()" title="Close">✕</button>
+    </div>
+    <div class="da-body">
+      <!-- Multi-timeframe summary -->
+      <div class="da-sec">
+        <div class="da-sec-hdr"><em>◈</em> Multi-Timeframe Performance</div>
+        <div class="da-sec-body"><div class="mtf-grid" id="da-mtf"><div class="da-empty">Loading…</div></div></div>
+      </div>
+      <!-- Period selector + Chart -->
+      <div class="da-sec">
+        <div class="da-sec-hdr"><em>◈</em> Deep Chart + Macro Events
+          <span style="margin-left:auto;display:flex;gap:4px" id="da-ptabs-wrap">
+            <button class="da-ptab" data-period="1W"  onclick="switchDAPeriod('1W')">1W</button>
+            <button class="da-ptab" data-period="1M"  onclick="switchDAPeriod('1M')">1M</button>
+            <button class="da-ptab" data-period="3M"  onclick="switchDAPeriod('3M')">3M</button>
+            <button class="da-ptab active" data-period="1Y" onclick="switchDAPeriod('1Y')">1Y</button>
+            <button class="da-ptab" data-period="5Y"  onclick="switchDAPeriod('5Y')">5Y</button>
+          </span>
+        </div>
+        <div class="da-sec-body" style="padding:10px 13px">
+          <div class="ev-legend">
+            <div class="ev-leg-item"><div class="ev-leg-dot" style="background:#00d4aa"></div>Fed Policy</div>
+            <div class="ev-leg-item"><div class="ev-leg-dot" style="background:#ff9933"></div>Geopolitical</div>
+            <div class="ev-leg-item"><div class="ev-leg-dot" style="background:#ffcc44"></div>Economic</div>
+            <div class="ev-leg-item"><div class="ev-leg-dot" style="background:#8866ff"></div>Crypto</div>
+          </div>
+          <div class="da-chart-wrap cloading" id="da-chart-wrap"><canvas id="da-chart"></canvas></div>
+        </div>
+      </div>
+      <!-- Pattern detection -->
+      <div class="da-sec">
+        <div class="da-sec-hdr"><em>◈</em> Pattern Detection &amp; Key Levels</div>
+        <div class="da-sec-body" id="da-patterns"><div class="da-empty">Loading…</div></div>
+      </div>
+      <!-- Macro event impact -->
+      <div class="da-sec">
+        <div class="da-sec-hdr"><em>◈</em> Macro Event Impact Analysis</div>
+        <div class="da-sec-body" id="da-events"><div class="da-empty">Loading…</div></div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <footer>
   <span>Data: <a href="https://finance.yahoo.com" target="_blank">Yahoo Finance</a> · <a href="https://coingecko.com" target="_blank">CoinGecko</a> · <a href="https://alternative.me" target="_blank">Fear &amp; Greed Index</a></span>
@@ -681,7 +804,7 @@ async function getChartData(asset,period){
   const key=`${asset.id}:${period}`;
   if(chartCache[key])return chartCache[key];
 
-  let labels=[],values=[],ohlc=[];
+  let labels=[],values=[],ohlc=[],timestamps=[];
   const d=dataCache[asset.id];
 
   if(['1W','1M','3M','1Y'].includes(period)){
@@ -691,6 +814,7 @@ async function getChartData(asset,period){
     values=d.closes.slice(-n);
     const ts=d.timestamps?d.timestamps.slice(-n):null;
     labels=ts?ts.map(t=>fmtDate(t,period)):values.map((_,i)=>`D${i+1}`);
+    if(ts)timestamps=ts;
     if(d.opens&&d.highs&&d.lows){
       const opens=d.opens.slice(-n),highs=d.highs.slice(-n),lows=d.lows.slice(-n);
       ohlc=values.map((c,i)=>({o:opens[i]??c,h:highs[i]??c,l:lows[i]??c,c}));
@@ -707,11 +831,13 @@ async function getChartData(asset,period){
       labels=rows.map(r=>fmtTime(r.t));
       values=rows.map(r=>r.c);
       ohlc=rows.map(r=>({o:r.o??r.c,h:r.h??r.c,l:r.l??r.c,c:r.c}));
+      timestamps=rows.map(r=>r.t);
     } else {
       const data=await tryGet('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=1',12000);
       labels=data.prices.map(([t])=>fmtTime(t/1000));
       values=data.prices.map(([,p])=>p);
       ohlc=values.map(c=>({o:c,h:c,l:c,c}));
+      timestamps=data.prices.map(([t])=>Math.floor(t/1000));
     }
   } else if(period==='5Y'){
     if(asset.type==='yahoo'){
@@ -725,6 +851,7 @@ async function getChartData(asset,period){
       labels=rows.map(r=>fmtDate(r.t,'5Y'));
       values=rows.map(r=>r.c);
       ohlc=rows.map(r=>({o:r.o??r.c,h:r.h??r.c,l:r.l??r.c,c:r.c}));
+      timestamps=rows.map(r=>r.t);
     } else {
       // Group daily market_chart data into weekly candles
       const data=await tryGet('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=1825',15000);
@@ -738,10 +865,11 @@ async function getChartData(asset,period){
       labels=weekly.map(r=>fmtDate(Math.floor(r.ts/1000),'5Y'));
       values=weekly.map(r=>r.c);
       ohlc=weekly.map(r=>({o:r.o,h:r.h,l:r.l,c:r.c}));
+      timestamps=weekly.map(r=>Math.floor(r.ts/1000));
     }
   }
 
-  const res={labels,values,ohlc};
+  const res={labels,values,ohlc,timestamps};
   chartCache[key]=res;
   return res;
 }
@@ -1024,6 +1152,9 @@ function cardHTML(asset,d,ana,deleteCb=''){
       <div class="ftitle">▸ Key Fundamentals <span style="font-size:7px;font-style:italic;font-weight:400;color:var(--tdim)">— hover label for explanation</span></div>
       <div id="fcnt-${id}"><div class="fempty" style="display:flex;align-items:center;gap:6px"><span>⏳</span> Loading fundamentals…</div></div>
     </div>
+    <button class="tbtn" onclick="openDeepAnalysis('${id}')" style="background:linear-gradient(to right,rgba(136,102,255,.07),rgba(0,212,170,.04));border-top:1px solid rgba(136,102,255,.2)">
+      🔬 Deep Analysis <span style="font-size:8px;color:var(--tdim);margin-left:4px">Patterns · Events · Multi-Timeframe</span><span class="ta" style="margin-left:auto">→</span>
+    </button>
   </div>`;
 }
 
@@ -1434,6 +1565,360 @@ async function fetchAll(){
   for(const{asset,ok}of results){
     if(ok&&!fundCache[asset.id])loadFund(asset).catch(()=>{});
   }
+}
+
+// ═══════════════════════════════════════════════════
+//  MACRO EVENTS DATABASE
+// ═══════════════════════════════════════════════════
+const MACRO_EVENTS=[
+  {date:'2020-03-11',title:'COVID Pandemic',desc:'WHO declares COVID-19 a global pandemic — markets crash globally',type:'geo'},
+  {date:'2020-03-16',title:'Fed → 0%',desc:'Fed emergency rate cut to 0-0.25%; massive QE launched — largest since 2008',type:'fed'},
+  {date:'2021-05-19',title:'BTC Crash',desc:'China bans crypto mining; Bitcoin drops ~50% in weeks',type:'crypto'},
+  {date:'2021-09-20',title:'Evergrande Crisis',desc:'Chinese property giant Evergrande misses debt payments; global contagion fears',type:'eco'},
+  {date:'2022-02-24',title:'Russia Invades Ukraine',desc:'Russia begins full-scale invasion of Ukraine; energy prices spike, global risk-off',type:'geo'},
+  {date:'2022-03-16',title:'Fed +25bp',desc:'First Fed hike of 2022 tightening cycle; start of most aggressive tightening in 40 years',type:'fed'},
+  {date:'2022-06-15',title:'Fed +75bp',desc:'Largest single hike since 1994 amid 9.1% inflation; markets in bear territory',type:'fed'},
+  {date:'2022-09-21',title:'Fed +75bp #3',desc:'Third consecutive 75bp hike; Fed signals rates will stay higher for longer',type:'fed'},
+  {date:'2022-11-08',title:'FTX Collapse',desc:'FTX exchange collapses; $8B customer fund hole discovered — major crypto contagion',type:'crypto'},
+  {date:'2023-03-10',title:'SVB Collapse',desc:'Silicon Valley Bank fails — largest US bank collapse since 2008; banking crisis fears',type:'eco'},
+  {date:'2023-07-26',title:'Fed Peak 5.5%',desc:'Fed raises to 5.25-5.5% — highest in 22 years; last hike of tightening cycle',type:'fed'},
+  {date:'2023-10-07',title:'Hamas Attacks Israel',desc:'Hamas launches surprise attack on Israel; Middle East tensions spike; oil rallies',type:'geo'},
+  {date:'2024-01-10',title:'Bitcoin ETF Approved',desc:'SEC approves first spot Bitcoin ETF; massive institutional inflows begin immediately',type:'crypto'},
+  {date:'2024-04-19',title:'Bitcoin Halving',desc:'4th Bitcoin halving: block reward halves from 6.25 to 3.125 BTC — supply shock',type:'crypto'},
+  {date:'2024-09-18',title:'Fed -50bp',desc:'Fed cuts 50bp — first cut since 2020; start of new easing cycle',type:'fed'},
+  {date:'2024-11-05',title:'Trump Wins Election',desc:'Trump wins 2024 US election; markets rally on tax cut and deregulation expectations',type:'geo'},
+  {date:'2024-12-18',title:'Fed Hawkish Pivot',desc:'Fed signals only 2 cuts in 2025 vs 4 expected; dollar surges, equities sell off',type:'fed'},
+  {date:'2025-01-20',title:'Trump Inauguration',desc:'Trump begins second term; executive orders on tariffs, energy, and crypto issued day one',type:'geo'},
+  {date:'2025-04-02',title:'"Liberation Day" Tariffs',desc:'Trump announces sweeping reciprocal tariffs on 70+ countries — largest since the 1930s',type:'eco'},
+  {date:'2025-04-09',title:'Tariff Pause 90 Days',desc:'90-day pause on most tariffs; S&P 500 surges 9.5% — one of largest single-day gains ever',type:'eco'},
+  {date:'2025-06-18',title:'Fed -25bp',desc:'Fed resumes rate cuts citing tariff-driven economic slowdown and disinflation',type:'fed'},
+];
+
+// ═══════════════════════════════════════════════════
+//  PATTERN DETECTION ENGINE
+// ═══════════════════════════════════════════════════
+function bodySize(r){return Math.abs(r.c-r.o)}
+function candleRange(r){return r.h-r.l}
+function upperWick(r){return r.h-Math.max(r.o,r.c)}
+function lowerWick(r){return Math.min(r.o,r.c)-r.l}
+function isBull(r){return r.c>=r.o}
+
+function detectPatterns(ohlc){
+  const patterns=[];
+  if(!ohlc||ohlc.length<3)return patterns;
+  const n=ohlc.length;
+  for(let i=n-1;i>=Math.max(2,n-40)&&patterns.length<7;i--){
+    const r=ohlc[i],rng=candleRange(r);
+    if(rng<0.00001)continue;
+    const bs=bodySize(r),bR=bs/rng,uW=upperWick(r),lW=lowerWick(r);
+    const dAgo=n-1-i;
+    const ago=dAgo===0?'today':dAgo===1?'yesterday':`${dAgo} bars ago`;
+    // 3-candle patterns first
+    if(i>=2){
+      const r0=ohlc[i-2],r1=ohlc[i-1];
+      const bs0=bodySize(r0),rng0=candleRange(r0),bs1=bodySize(r1),rng1=candleRange(r1);
+      if(!isBull(r0)&&bs0>rng0*0.5&&(rng1>0?bs1/rng1:1)<0.35&&isBull(r)&&r.c>(r0.o+r0.c)/2)
+        {patterns.push({name:'Morning Star',ago,bull:true,desc:'3-candle bottom reversal: strong bearish → small doji → strong bullish. High-confidence reversal at lows.'});continue}
+      if(isBull(r0)&&bs0>rng0*0.5&&(rng1>0?bs1/rng1:1)<0.35&&!isBull(r)&&r.c<(r0.o+r0.c)/2)
+        {patterns.push({name:'Evening Star',ago,bull:false,desc:'3-candle top reversal: strong bullish → small doji → strong bearish. High-confidence reversal at highs.'});continue}
+    }
+    // 2-candle patterns
+    if(i>0){
+      const p=ohlc[i-1],bsp=bodySize(p);
+      if(!isBull(p)&&isBull(r)&&r.o<p.c&&r.c>p.o&&bs>bsp)
+        {patterns.push({name:'Bullish Engulfing',ago,bull:true,desc:'Bullish candle fully engulfs prior bearish candle body — strong trend reversal signal.'});continue}
+      if(isBull(p)&&!isBull(r)&&r.o>p.c&&r.c<p.o&&bs>bsp)
+        {patterns.push({name:'Bearish Engulfing',ago,bull:false,desc:'Bearish candle fully engulfs prior bullish candle body — strong trend reversal signal.'});continue}
+      const maxP=Math.max(p.o,p.c),minP=Math.min(p.o,p.c);
+      if(bs<bsp*0.5&&r.h<maxP&&r.l>minP)
+        {patterns.push({name:isBull(r)?'Bullish Harami':'Bearish Harami',ago,bull:isBull(r),desc:'Small inside bar fully contained in prior candle — signals momentum pause or potential reversal.'});continue}
+    }
+    // Single-candle
+    if(bR<0.05)
+      {patterns.push({name:'Doji',ago,bull:null,desc:'Open ≈ close — market equilibrium and indecision. Often precedes a trend reversal, especially after an extended move.'});continue}
+    if(bR<0.15&&uW>rng*0.3&&lW>rng*0.3)
+      {patterns.push({name:'Long-Legged Doji',ago,bull:null,desc:'Long wicks both sides with tiny body — extreme indecision. High probability of trend reversal.'});continue}
+    if(lW>bs*2.2&&uW<bs*0.5&&bR<0.42)
+      {patterns.push({name:'Hammer',ago,bull:true,desc:'Long lower wick shows buyers forcefully rejected lower prices. Bullish reversal when at support or recent lows.'});continue}
+    if(uW>bs*2.2&&lW<bs*0.5&&bR<0.42)
+      {patterns.push({name:'Shooting Star',ago,bull:false,desc:'Long upper wick shows sellers rejected higher prices. Bearish reversal when at resistance or recent highs.'});continue}
+    if(bR>0.87&&uW<bs*0.1&&lW<bs*0.1)
+      {patterns.push({name:isBull(r)?'Bullish Marubozu':'Bearish Marubozu',ago,bull:isBull(r),desc:'Strong full-body candle with almost no wicks — pure directional conviction. Trend continuation expected.'});continue}
+    if(bR<0.28&&uW>bs*0.7&&lW>bs*0.7)
+      {patterns.push({name:'Spinning Top',ago,bull:null,desc:'Small body with equal wicks — indecision candle. Signals potential pause in the current trend.'});continue}
+  }
+  return patterns;
+}
+
+function detectTrend(closes,period){
+  if(!closes||closes.length<5)return{dir:'SIDEWAYS',pctChg:0};
+  const n=closes.length;
+  const e9=emaArr(closes,Math.min(9,n));
+  const e21=emaArr(closes,Math.min(21,n));
+  const pctChg=((closes.at(-1)-closes[0])/closes[0])*100;
+  const cross=e9.at(-1)>e21.at(-1);
+  const slope9=(e9.at(-1)-e9.at(-Math.min(5,n)))/e9.at(-Math.min(5,n))*100;
+  let dir;
+  if(pctChg>3&&cross&&slope9>0)dir='UPTREND';
+  else if(pctChg<-3&&!cross&&slope9<0)dir='DOWNTREND';
+  else dir='SIDEWAYS';
+  return{dir,pctChg,slope:slope9};
+}
+
+function findSR(ohlc){
+  if(!ohlc||ohlc.length<15)return{supports:[],resistances:[]};
+  const lows=ohlc.map(r=>r.l),highs=ohlc.map(r=>r.h);
+  const rangeH=Math.max(...highs)-Math.min(...lows);
+  const tol=rangeH*0.018;
+  const supports=[],resistances=[];
+  const merge=(arr,level)=>{
+    const ex=arr.find(s=>Math.abs(s.level-level)<tol);
+    if(ex)ex.touches++;
+    else arr.push({level,touches:1});
+  };
+  for(let i=3;i<ohlc.length-3;i++){
+    if(lows[i]<lows[i-1]&&lows[i]<lows[i-2]&&lows[i]<lows[i+1]&&lows[i]<lows[i+2])merge(supports,lows[i]);
+    if(highs[i]>highs[i-1]&&highs[i]>highs[i-2]&&highs[i]>highs[i+1]&&highs[i]>highs[i+2])merge(resistances,highs[i]);
+  }
+  const top=arr=>arr.filter(s=>s.touches>=2).sort((a,b)=>b.touches-a.touches).slice(0,3);
+  return{supports:top(supports),resistances:top(resistances)};
+}
+
+function getRelevantEvents(timestamps){
+  if(!timestamps||!timestamps.length)return[];
+  const minMs=Math.min(...timestamps)*1000,maxMs=Math.max(...timestamps)*1000;
+  return MACRO_EVENTS.filter(ev=>{
+    const ms=new Date(ev.date).getTime();
+    return ms>=minMs&&ms<=maxMs;
+  }).map(ev=>{
+    const ms=new Date(ev.date).getTime();
+    let bestIdx=0,bestDiff=Infinity;
+    timestamps.forEach((ts,i)=>{const d=Math.abs(ts*1000-ms);if(d<bestDiff){bestDiff=d;bestIdx=i}});
+    return{...ev,idx:bestIdx};
+  });
+}
+
+function computeEventImpact(ohlc,closes,events){
+  return events.map(ev=>{
+    const {idx}=ev;
+    const before=ohlc[idx]?.o??closes[idx];
+    const after5Idx=Math.min((ohlc||closes).length-1,idx+5);
+    const after10Idx=Math.min((ohlc||closes).length-1,idx+10);
+    const after5=ohlc?ohlc[after5Idx]?.c:closes[after5Idx];
+    const after10=ohlc?ohlc[after10Idx]?.c:closes[after10Idx];
+    if(!before)return{...ev,chg5:null,chg10:null};
+    return{...ev,chg5:after5!=null?((after5-before)/before)*100:null,chg10:after10!=null?((after10-before)/before)*100:null};
+  });
+}
+
+function computeMTF(id){
+  const d=dataCache[id];
+  if(!d||!d.closes.length)return[];
+  const cls=d.closes;
+  return[{lbl:'1W',n:7},{lbl:'1M',n:22},{lbl:'3M',n:65},{lbl:'1Y',n:252}].map(({lbl,n})=>{
+    const sl=cls.slice(-Math.min(n,cls.length));
+    if(sl.length<2)return{lbl,pct:0,cls:'neu',dir:'—'};
+    const pct=((sl.at(-1)-sl[0])/sl[0])*100;
+    const t=detectTrend(sl,lbl);
+    const c=t.dir==='UPTREND'?'up':t.dir==='DOWNTREND'?'dn':'neu';
+    const dLabel=t.dir==='UPTREND'?'▲ Uptrend':t.dir==='DOWNTREND'?'▼ Downtrend':'◆ Sideways';
+    return{lbl,pct,cls:c,dir:dLabel};
+  });
+}
+
+// ═══════════════════════════════════════════════════
+//  DEEP ANALYSIS MODAL
+// ═══════════════════════════════════════════════════
+let daChart=null,daAsset=null,daPeriod='1Y';
+
+function openDeepAnalysis(id){
+  daAsset=getAllAssets().find(a=>a.id===id);
+  if(!daAsset)return;
+  const modal=document.getElementById('da-modal');
+  if(!modal)return;
+  modal.removeAttribute('hidden');
+  document.body.style.overflow='hidden';
+  document.getElementById('da-asset-name').textContent=daAsset.name;
+  document.getElementById('da-asset-sub').textContent=(daAsset.isin||daAsset.symbol)+' · '+daAsset.cur;
+  // MTF (from cached data, no extra fetch needed)
+  const mtfEl=document.getElementById('da-mtf');
+  const mtf=computeMTF(id);
+  if(mtf.length&&mtfEl){
+    mtfEl.innerHTML=mtf.map(m=>`<div class="mtf-item">
+      <span class="mtf-period">${m.lbl}</span>
+      <span class="mtf-pct ${m.cls}">${m.pct>=0?'+':''}${m.pct.toFixed(1)}%</span>
+      <span class="mtf-dir">${m.dir}</span>
+    </div>`).join('');
+  }
+  // Reset period tabs
+  daPeriod='1Y';
+  document.querySelectorAll('.da-ptab').forEach(t=>t.classList.toggle('active',t.dataset.period==='1Y'));
+  // Run analysis
+  runDeepAnalysis();
+}
+
+function closeDeepAnalysis(){
+  const modal=document.getElementById('da-modal');
+  if(modal)modal.setAttribute('hidden','');
+  document.body.style.overflow='';
+  if(daChart){try{daChart.destroy()}catch{}daChart=null}
+  daAsset=null;
+}
+
+async function switchDAPeriod(period){
+  if(!daAsset)return;
+  daPeriod=period;
+  document.querySelectorAll('.da-ptab').forEach(t=>t.classList.toggle('active',t.dataset.period===period));
+  await runDeepAnalysis();
+}
+
+async function runDeepAnalysis(){
+  if(!daAsset)return;
+  const wrap=document.getElementById('da-chart-wrap');
+  if(wrap)wrap.classList.add('cloading');
+  document.getElementById('da-patterns').innerHTML='<div class="da-empty">Analyzing…</div>';
+  document.getElementById('da-events').innerHTML='<div class="da-empty">Analyzing…</div>';
+  try{
+    const cd=await getChartData(daAsset,daPeriod);
+    const{labels,values,ohlc,timestamps}=cd;
+    const events=getRelevantEvents(timestamps);
+    const evImpact=computeEventImpact(ohlc,values,events);
+    const patterns=ohlc&&ohlc.length?detectPatterns(ohlc):[];
+    const trend=detectTrend(values,daPeriod);
+    const sr=ohlc&&ohlc.length?findSR(ohlc):null;
+    drawDAChart(labels,values,CUR_SYM[daAsset.cur]||'',ohlc,events);
+    renderDAPatterns(patterns,trend,sr);
+    renderDAEvents(evImpact);
+  }catch(e){
+    console.warn('Deep analysis error',e);
+    document.getElementById('da-patterns').innerHTML='<div class="da-empty">Error loading data: '+e.message+'</div>';
+    document.getElementById('da-events').innerHTML='<div class="da-empty">Error loading data.</div>';
+  }
+  if(wrap)wrap.classList.remove('cloading');
+}
+
+function drawDAChart(labels,values,cur,ohlc,events){
+  const c=document.getElementById('da-chart');
+  if(!c)return;
+  if(daChart){try{daChart.destroy()}catch{}daChart=null}
+  const evPlugin={
+    id:'daEvt',
+    afterDatasetsDraw(chart){
+      const{ctx,scales:{y:yS},chartArea}=chart;
+      if(!chartArea)return;
+      const meta=chart.getDatasetMeta(0);
+      events.forEach(ev=>{
+        const bar=meta.data[ev.idx];
+        if(!bar)return;
+        const x=bar.x;
+        const clr=ev.type==='fed'?'#00d4aa':ev.type==='geo'?'#ff9933':ev.type==='crypto'?'#8866ff':'#ffcc44';
+        ctx.save();
+        ctx.globalAlpha=0.55;ctx.strokeStyle=clr;ctx.lineWidth=1;ctx.setLineDash([3,3]);
+        ctx.beginPath();ctx.moveTo(x,chartArea.top);ctx.lineTo(x,chartArea.bottom);ctx.stroke();
+        ctx.setLineDash([]);ctx.globalAlpha=0.88;ctx.fillStyle=clr;
+        ctx.font=`bold 7.5px 'JetBrains Mono',monospace`;ctx.textAlign='center';
+        ctx.save();ctx.translate(x,chartArea.top+3);ctx.rotate(-Math.PI/2);
+        const lbl=ev.title.length>18?ev.title.substring(0,17)+'…':ev.title;
+        ctx.fillText(lbl,0,0);ctx.restore();
+        ctx.restore();
+      });
+    }
+  };
+  if(ohlc&&ohlc.length){
+    const lows=ohlc.map(r=>r.l),highs=ohlc.map(r=>r.h);
+    const mn=Math.min(...lows),mx=Math.max(...highs),pad=(mx-mn)*.03||1;
+    daChart=new Chart(c,{
+      type:'bar',plugins:[CANDLE_PLUGIN,evPlugin],
+      data:{labels,datasets:[{data:ohlc.map(r=>[r.l,r.h]),backgroundColor:'transparent',borderColor:'transparent',borderWidth:0,borderSkipped:false}]},
+      options:{responsive:true,maintainAspectRatio:false,animation:{duration:200},interaction:{intersect:false,mode:'index'},
+        plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(4,8,20,.94)',borderColor:'#1a3356',borderWidth:1,titleColor:'#7a9abc',bodyColor:'#e8f4ff',padding:{x:11,y:7},displayColors:false,callbacks:{
+          title:items=>items[0].label,
+          label:item=>{const r=item.chart._ohlcData?.[item.dataIndex];if(!r)return'';const chg=r.o?((r.c-r.o)/r.o*100):0;return r.o!==r.c?[` O:${cur}${fmt(r.o)}  H:${cur}${fmt(r.h)}`,` L:${cur}${fmt(r.l)}  C:${cur}${fmt(r.c)}`,` ${r.c>=r.o?'▲':'▼'} ${chg>=0?'+':''}${chg.toFixed(2)}%`]:[` ${cur}${fmt(r.c)}`]}
+        }}},
+        scales:{x:{grid:{color:'rgba(26,51,86,.2)'},ticks:{color:'#4a6880',font:{size:9,family:"'JetBrains Mono',monospace"},maxRotation:0,maxTicksLimit:8},border:{display:false}},
+          y:{position:'right',min:mn-pad,max:mx+pad,grid:{color:'rgba(26,51,86,.2)'},ticks:{color:'#4a6880',font:{size:9,family:"'JetBrains Mono',monospace"},callback:v=>fmt(v),maxTicksLimit:6},border:{display:false}}}
+      }
+    });
+    daChart._ohlcData=ohlc;
+  }else{
+    const isUp=(values.at(-1)??0)>=(values[0]??0);
+    const clr=isUp?'#00e676':'#ff3355';
+    const mn=Math.min(...values),mx=Math.max(...values),pad=(mx-mn)*.04||1;
+    daChart=new Chart(c,{type:'line',plugins:[GRAD_PLUGIN,evPlugin],
+      data:{labels,datasets:[{data:values,borderColor:clr,borderWidth:1.8,pointRadius:0,tension:.1,fill:true,backgroundColor:'transparent'}]},
+      options:{responsive:true,maintainAspectRatio:false,animation:{duration:200},interaction:{intersect:false,mode:'index'},
+        plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(4,8,20,.92)',borderColor:'#1a3356',borderWidth:1,titleColor:'#4a6880',bodyColor:'#e8f4ff',padding:{x:10,y:6},displayColors:false,callbacks:{title:i=>i[0].label,label:i=>` ${cur}${fmt(i.raw)}`}}},
+        scales:{x:{grid:{color:'rgba(26,51,86,.2)'},ticks:{color:'#4a6880',font:{size:9},maxRotation:0,maxTicksLimit:8},border:{display:false}},y:{position:'right',min:mn-pad,max:mx+pad,grid:{color:'rgba(26,51,86,.2)'},ticks:{color:'#4a6880',font:{size:9},callback:v=>fmt(v),maxTicksLimit:6},border:{display:false}}}
+      }
+    });
+  }
+}
+
+function renderDAPatterns(patterns,trend,sr){
+  const tCls=trend.dir==='UPTREND'?'up':trend.dir==='DOWNTREND'?'dn':'side';
+  const tLabel=trend.dir==='UPTREND'?'▲ Uptrend':trend.dir==='DOWNTREND'?'▼ Downtrend':'◆ Sideways';
+  const pctStr=trend.pctChg!=null?` · ${trend.pctChg>=0?'+':''}${trend.pctChg.toFixed(1)}% period change`:'';
+  let html=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+    <span class="trend-chip ${tCls}">${tLabel}</span>
+    <span style="font-size:9px;color:var(--tdim)">${pctStr}</span>
+  </div>`;
+  if(patterns.length){
+    html+=`<div class="pat-list">${patterns.map(p=>{
+      const bc=p.bull===true?'bull':p.bull===false?'bear':'neu';
+      const bl=p.bull===true?'Bullish':p.bull===false?'Bearish':'Neutral';
+      return`<div class="pat-item"><span class="pat-badge ${bc}">${bl}</span><div>
+        <div class="pat-name">${p.name}</div>
+        <div class="pat-ago">${p.ago}</div>
+        <div class="pat-desc">${p.desc}</div>
+      </div></div>`;
+    }).join('')}</div>`;
+  }else{
+    html+=`<div class="da-empty" style="text-align:left">No significant candlestick patterns detected in the last 40 bars.</div>`;
+  }
+  if(sr&&(sr.supports.length||sr.resistances.length)){
+    const cur=CUR_SYM[daAsset?.cur]||'';
+    html+=`<div style="margin-top:12px">
+      <div style="font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--tdim);margin-bottom:6px">▸ Key Support &amp; Resistance Levels</div>
+      <div class="sr-grid">
+        ${sr.resistances.slice(0,2).map(r=>`<div class="sr-item res"><div class="sr-lbl">Resistance</div><div class="sr-val">${cur}${fmt(r.level)}</div><div class="sr-tests">Tested ${r.touches}×</div></div>`).join('')}
+        ${sr.supports.slice(0,2).map(s=>`<div class="sr-item sup"><div class="sr-lbl">Support</div><div class="sr-val">${cur}${fmt(s.level)}</div><div class="sr-tests">Tested ${s.touches}×</div></div>`).join('')}
+      </div>
+    </div>`;
+  }
+  const el=document.getElementById('da-patterns');
+  if(el)el.innerHTML=html;
+}
+
+function renderDAEvents(events){
+  const el=document.getElementById('da-events');
+  if(!el)return;
+  if(!events.length){
+    el.innerHTML=`<div class="da-empty">No major macro events recorded in this time window.<br><span style="font-size:9px">Select a longer period (1Y or 5Y) to see event analysis.</span></div>`;
+    return;
+  }
+  const typeLabel={fed:'Fed Policy',geo:'Geopolitical',eco:'Economic',crypto:'Crypto'};
+  el.innerHTML=`<div class="ev-list">${events.map(ev=>{
+    const chg=ev.chg5,c10=ev.chg10;
+    const chgStr=chg!=null?(chg>=0?'+':'')+chg.toFixed(1)+'%':'—';
+    const chgCls=chg==null?'':chg>=0?'up':'dn';
+    const c10Str=c10!=null?(c10>=0?'+':'')+c10.toFixed(1)+'%':'';
+    return`<div class="ev-item">
+      <div class="ev-dot ${ev.type}"></div>
+      <div>
+        <div class="ev-title">${ev.title} <span style="font-size:8px;font-weight:400;color:var(--tdim)">${typeLabel[ev.type]||''}</span></div>
+        <div class="ev-date">${ev.date}</div>
+        <div class="ev-desc">${ev.desc}</div>
+      </div>
+      <div class="ev-chg">
+        <span class="ev-chg-v ${chgCls}">${chgStr}</span>
+        <span class="ev-chg-l">5-day return</span>
+        ${c10Str?`<span class="ev-chg-v ${chgCls}" style="font-size:10px;margin-top:3px">${c10Str}</span><span class="ev-chg-l">10-day return</span>`:''}
+      </div>
+    </div>`;
+  }).join('')}</div>
+  <div style="font-size:8px;color:var(--tdim);margin-top:8px;font-style:italic;line-height:1.4">
+    * Returns measured from event date open to +5/+10 bars. Past event reactions do not predict future behavior. For educational purposes only.
+  </div>`;
 }
 
 // ═══════════════════════════════════════════════════
