@@ -167,6 +167,8 @@
     .cperf-val{font-family:var(--mono);font-size:12px;font-weight:600}
     .cpbrow{display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap}
     .comp-empty{text-align:center;padding:40px 20px;color:var(--tdim);font-size:12px;grid-column:1/-1}
+    .comp-err{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:rgba(4,8,15,.85);font-size:10px;color:var(--tdim);border-radius:4px;text-align:center;padding:16px;z-index:2}
+    .comp-err button{padding:4px 12px;background:var(--adim);border:1px solid var(--acc);color:var(--acc);border-radius:3px;font-size:9px;font-weight:600;cursor:pointer;font-family:var(--font);letter-spacing:.04em}
     .comp-empty span{font-size:28px;display:block;margin-bottom:8px}
 
     /* ── CUSTOM ASSETS PANEL ── */
@@ -236,14 +238,22 @@
     .mtf-dir{font-size:7.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--tdim)}
     /* Patterns */
     .pat-list{display:flex;flex-direction:column;gap:5px}
-    .pat-item{display:flex;align-items:flex-start;gap:9px;padding:7px 10px;border-radius:var(--rsm);background:var(--sur2);border:1px solid var(--bdr2)}
-    .pat-badge{padding:2px 7px;border-radius:3px;font-size:8px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;flex-shrink:0;margin-top:1px}
+    .pat-item{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:var(--rsm);background:var(--sur2);border:1px solid var(--bdr2);cursor:help;transition:border-color .15s}
+    .pat-item:hover{border-color:var(--acc)}
+    .pat-badge{padding:2px 7px;border-radius:3px;font-size:8px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;flex-shrink:0}
     .pat-badge.bull{background:#001f17;color:#00d070;border:1px solid #003d28}
     .pat-badge.bear{background:#2a0010;color:#ff6680;border:1px solid #4d001e}
     .pat-badge.neu{background:#1f1a00;color:#ffcc44;border:1px solid #332a00}
     .pat-name{font-size:11px;font-weight:600;color:var(--tbri)}
-    .pat-ago{font-size:9px;color:var(--tdim);font-family:var(--mono)}
-    .pat-desc{font-size:9px;color:var(--txt);line-height:1.45;margin-top:2px}
+    .pat-ago{font-size:9px;color:var(--tdim);font-family:var(--mono);margin-left:4px}
+    .pat-info{font-size:9px;color:var(--tdim);margin-left:auto;flex-shrink:0;opacity:.55}
+    /* Collapsible DA sections */
+    .da-sec-hdr{padding:8px 13px;background:var(--sur2);border-bottom:1px solid var(--bdr2);font-size:9px;text-transform:uppercase;letter-spacing:.09em;color:var(--tdim);display:flex;align-items:center;gap:6px;border-radius:calc(var(--r) - 1px) calc(var(--r) - 1px) 0 0;cursor:pointer;user-select:none;transition:background .15s}
+    .da-sec-hdr:hover{background:var(--sur3)}
+    .da-sec.collapsed .da-sec-hdr{border-bottom:none;border-radius:calc(var(--r) - 1px)}
+    .da-sec-toggle{font-size:10px;color:var(--tdim);transition:transform .22s;display:inline-block;line-height:1;margin-left:2px}
+    .da-sec.collapsed .da-sec-toggle{transform:rotate(180deg)}
+    .da-sec.collapsed .da-sec-body{display:none}
     /* Support / Resistance */
     .sr-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
     .sr-item{padding:7px 10px;background:var(--sur2);border-radius:var(--rsm);border-left:3px solid var(--bdr)}
@@ -426,19 +436,19 @@
     <div class="da-body">
       <!-- Multi-timeframe summary -->
       <div class="da-sec">
-        <div class="da-sec-hdr"><em>◈</em> Multi-Timeframe Performance</div>
+        <div class="da-sec-hdr" onclick="toggleDASection(this)"><em>◈</em> Multi-Timeframe Performance<span class="da-sec-toggle">▲</span></div>
         <div class="da-sec-body"><div class="mtf-grid" id="da-mtf"><div class="da-empty">Loading…</div></div></div>
       </div>
       <!-- Period selector + Chart -->
       <div class="da-sec">
-        <div class="da-sec-hdr"><em>◈</em> Deep Chart + Macro Events
-          <span style="margin-left:auto;display:flex;gap:4px" id="da-ptabs-wrap">
+        <div class="da-sec-hdr" onclick="toggleDASection(this)"><em>◈</em> Deep Chart + Macro Events
+          <span style="margin-left:auto;display:flex;gap:4px" id="da-ptabs-wrap" onclick="event.stopPropagation()">
             <button class="da-ptab" data-period="1W"  onclick="switchDAPeriod('1W')">1W</button>
             <button class="da-ptab" data-period="1M"  onclick="switchDAPeriod('1M')">1M</button>
             <button class="da-ptab" data-period="3M"  onclick="switchDAPeriod('3M')">3M</button>
             <button class="da-ptab active" data-period="1Y" onclick="switchDAPeriod('1Y')">1Y</button>
             <button class="da-ptab" data-period="5Y"  onclick="switchDAPeriod('5Y')">5Y</button>
-          </span>
+          </span><span class="da-sec-toggle" style="margin-left:6px">▲</span>
         </div>
         <div class="da-sec-body" style="padding:10px 13px">
           <div class="ev-legend">
@@ -455,12 +465,12 @@
       </div>
       <!-- Pattern detection -->
       <div class="da-sec">
-        <div class="da-sec-hdr"><em>◈</em> Pattern Detection &amp; Key Levels</div>
+        <div class="da-sec-hdr" onclick="toggleDASection(this)"><em>◈</em> Pattern Detection &amp; Key Levels<span class="da-sec-toggle">▲</span></div>
         <div class="da-sec-body" id="da-patterns"><div class="da-empty">Loading…</div></div>
       </div>
       <!-- Macro event impact -->
       <div class="da-sec">
-        <div class="da-sec-hdr"><em>◈</em> Macro Event Impact Analysis</div>
+        <div class="da-sec-hdr" onclick="toggleDASection(this)"><em>◈</em> Macro Event Impact Analysis<span class="da-sec-toggle">▲</span></div>
         <div class="da-sec-body" id="da-events"><div class="da-empty">Loading…</div></div>
       </div>
     </div>
@@ -552,6 +562,7 @@ const activePeriod={}; // id → period string
 let comparisons = loadStore('ta_comps',[]);
 let customAssets = loadStore('ta_custom',[]);
 let _pendingQuotes = []; // ISIN search results waiting for user selection
+const _assetLoadPromises = {}; // dedup: asset.id → in-flight fetch Promise
 
 function loadStore(key,def){try{return JSON.parse(localStorage.getItem(key)||'null')||def}catch{return def}}
 function saveStore(key,val){try{localStorage.setItem(key,JSON.stringify(val))}catch{}}
@@ -1350,18 +1361,40 @@ function renderCompCard(comp){
 
 async function ensureAssetData(asset){
   if(dataCache[asset.id])return;
-  if(asset.type==='yahoo')dataCache[asset.id]=await fetchYahoo(asset.symbol);
-  else dataCache[asset.id]=await fetchCoinGecko();
+  // If loadCustomAsset (or a prior ensureAssetData) is already fetching this asset, wait for it
+  if(_assetLoadPromises[asset.id]){
+    try{await _assetLoadPromises[asset.id]}catch{}
+    if(dataCache[asset.id])return; // succeeded
+    // If it failed, fall through and try again below
+  }
+  const p=(asset.type==='yahoo'?fetchYahoo(asset.symbol):fetchCoinGecko())
+    .then(d=>{dataCache[asset.id]=d})
+    .finally(()=>{delete _assetLoadPromises[asset.id]});
+  _assetLoadPromises[asset.id]=p;
+  await p;
 }
 
 async function loadCompChart(comp){
   const{id,a,b,period,aName,bName}=comp;
   const aAsset=getAllAssets().find(x=>x.id===a);
   const bAsset=getAllAssets().find(x=>x.id===b);
-  const el=document.getElementById('compc-'+id);
-  if(!el||!aAsset||!bAsset)return;
-
+  // Find the canvas — it might have been replaced by a previous error overlay
+  let el=document.getElementById('compc-'+id);
+  if(!el){
+    // Reconstruct the canvas if missing (was wiped by a previous error)
+    const card=document.getElementById('comp-'+id);
+    const wrap=card&&card.querySelector('.cwrap');
+    if(wrap){wrap.innerHTML='<canvas id="compc-'+id+'"></canvas>';el=document.getElementById('compc-'+id);}
+  }
+  if(!el)return;
   const wrap=el.closest('.cwrap');
+  // Clear any previous error overlay
+  const prevErr=wrap&&wrap.querySelector('.comp-err');
+  if(prevErr)prevErr.remove();
+  if(!aAsset||!bAsset){
+    if(wrap){wrap.classList.remove('cloading');wrap.innerHTML='<div class="fempty">Asset not found — remove and re-add this comparison.</div>';}
+    return;
+  }
   if(wrap)wrap.classList.add('cloading');
 
   try{
@@ -1415,7 +1448,12 @@ async function loadCompChart(comp){
     }
   }catch(e){
     console.warn('Comp chart error',id,e);
-    if(el.parentElement)el.parentElement.innerHTML=`<div class="fempty">Chart unavailable: ${e.message}</div>`;
+    if(wrap){
+      const errDiv=document.createElement('div');
+      errDiv.className='comp-err';
+      errDiv.innerHTML=`<span style="font-size:16px">⚠</span>${e.message||'Load failed'}<button onclick="retryCompChart('${id}')">↻ Retry</button>`;
+      wrap.appendChild(errDiv);
+    }
   }
   if(wrap)wrap.classList.remove('cloading');
 }
@@ -1578,10 +1616,14 @@ function renderCustomGrid(){
 
 async function loadCustomAsset(asset){
   try{
-    let d;
-    if(asset.type==='yahoo')d=await fetchYahoo(asset.symbol);
-    else d=await fetchCoinGecko();
-    dataCache[asset.id]=d;
+    // Register in-flight promise so ensureAssetData can reuse it
+    if(!_assetLoadPromises[asset.id]){
+      const p=(asset.type==='yahoo'?fetchYahoo(asset.symbol):fetchCoinGecko())
+        .then(d=>{dataCache[asset.id]=d;return d})
+        .finally(()=>{delete _assetLoadPromises[asset.id]});
+      _assetLoadPromises[asset.id]=p;
+    }
+    const d=dataCache[asset.id]||await _assetLoadPromises[asset.id];
     // Detect currency from data
     if(d.cur&&d.cur!=='USD')asset.cur=d.cur;
     const ana=analyze(d.closes,d.lastClose);
@@ -1945,6 +1987,23 @@ function closeDeepAnalysis(){
   daAsset=null;
 }
 
+async function retryCompChart(id){
+  const comp=comparisons.find(c=>c.id===id);
+  if(!comp)return;
+  // Clear stale cache so fresh data is fetched
+  const aAsset=getAllAssets().find(x=>x.id===comp.a);
+  const bAsset=getAllAssets().find(x=>x.id===comp.b);
+  if(aAsset)delete dataCache[aAsset.id];
+  if(bAsset)delete dataCache[bAsset.id];
+  delete chartCache[`${comp.a}:${comp.period}`];
+  delete chartCache[`${comp.b}:${comp.period}`];
+  await loadCompChart(comp);
+}
+
+function toggleDASection(hdr){
+  hdr.closest('.da-sec').classList.toggle('collapsed');
+}
+
 async function switchDAPeriod(period){
   if(!daAsset)return;
   daPeriod=period;
@@ -2097,11 +2156,10 @@ function renderDAPatterns(patterns,trend,sr){
     html+=`<div class="pat-list">${patterns.map(p=>{
       const bc=p.bull===true?'bull':p.bull===false?'bear':'neu';
       const bl=p.bull===true?'Bullish':p.bull===false?'Bearish':'Neutral';
-      return`<div class="pat-item"><span class="pat-badge ${bc}">${bl}</span><div>
+      return`<div class="pat-item" data-tip="${(p.desc||'').replace(/"/g,'&quot;')}"><span class="pat-badge ${bc}">${bl}</span><div style="flex:1;min-width:0">
         <div class="pat-name">${p.name}</div>
         <div class="pat-ago">${p.ago}</div>
-        <div class="pat-desc">${p.desc}</div>
-      </div></div>`;
+      </div><span class="pat-info">ⓘ</span></div>`;
     }).join('')}</div>`;
   }else{
     html+=`<div class="da-empty" style="text-align:left">No significant candlestick patterns detected in the last 40 bars.</div>`;
