@@ -282,6 +282,15 @@
     .ev-chg{display:flex;flex-direction:column;align-items:flex-end;gap:1px;flex-shrink:0}
     .ev-chg-v{font-family:var(--mono);font-size:12px;font-weight:600;white-space:nowrap}
     .ev-chg-l{font-size:7.5px;color:var(--tdim);white-space:nowrap}
+    .ev-upcoming-hdr{font-size:8px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--yel);margin-bottom:5px;display:flex;align-items:center;gap:6px}
+    .ev-upcoming-hdr::after{content:'';flex:1;height:1px;background:rgba(255,204,68,.2)}
+    .ev-upcoming{border:1px solid rgba(255,204,68,.25);background:rgba(255,204,68,.04)}
+    .ev-upcoming .ev-title{color:var(--yel)}
+    .ev-countdown{font-family:var(--mono);font-size:10px;font-weight:700;color:var(--yel);white-space:nowrap;text-align:right}
+    .ev-countdown-lbl{font-size:7.5px;color:var(--tdim);white-space:nowrap;text-align:right}
+    .up-badge{display:inline-block;padding:1px 5px;border-radius:3px;font-size:8px;font-weight:700;background:rgba(255,204,68,.15);border:1px solid rgba(255,204,68,.4);color:var(--yel);letter-spacing:.05em;margin-left:5px;vertical-align:middle}
+    .ev-past-hdr{font-size:8px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tdim);margin:10px 0 5px;display:flex;align-items:center;gap:6px}
+    .ev-past-hdr::after{content:'';flex:1;height:1px;background:var(--bdr2)}
     .ev-legend{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px}
     .ev-leg-item{display:flex;align-items:center;gap:5px;font-size:9px;color:var(--tdim)}
     .ev-leg-dot{width:8px;height:8px;border-radius:50%}
@@ -606,7 +615,7 @@ async function fetchJSON(rawUrl){
 //  DATA SOURCES
 // ═══════════════════════════════════════════════════
 async function fetchYahoo(symbol){
-  const url=`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1y&interval=1d&includePrePost=false`;
+  const url=`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1y&interval=1d&includePrePost=false&events=div`;
   const data=await fetchJSON(url);
   const res=data?.chart?.result?.[0];
   if(!res)throw new Error('No chart data');
@@ -622,7 +631,9 @@ async function fetchYahoo(symbol){
   const lows=rows.map(r=>r.l??r.c);
   const lc=res.meta.regularMarketPrice||closes.at(-1);
   const pc=res.meta.previousClose||closes.at(-2);
-  return{closes,timestamps,opens,highs,lows,lastClose:lc,changePct:pc?((lc-pc)/pc)*100:0,cur:res.meta.currency||'USD'};
+  const rawDivs=res.events?.dividends||{};
+  const dividends=Object.values(rawDivs).map(d=>({ts:d.date,amount:d.amount})).sort((a,b)=>a.ts-b.ts);
+  return{closes,timestamps,opens,highs,lows,lastClose:lc,changePct:pc?((lc-pc)/pc)*100:0,cur:res.meta.currency||'USD',dividends};
 }
 
 async function fetchCoinGecko(){
@@ -950,6 +961,39 @@ async function getChartData(asset,period){
 // ═══════════════════════════════════════════════════
 //  CHARTS
 // ═══════════════════════════════════════════════════
+// ── DIVIDEND PLUGIN ──
+const DIV_PLUGIN={
+  id:'dividends',
+  afterDatasetsDraw(chart){
+    const divs=chart._divData;
+    if(!divs||!divs.length)return;
+    const{ctx,scales:{x:xS,y:yS},chartArea}=chart;
+    if(!chartArea)return;
+    ctx.save();
+    divs.forEach(({idx,amount})=>{
+      const x=xS.getPixelForValue(idx);
+      // Dashed vertical line
+      ctx.globalAlpha=0.45;ctx.strokeStyle='#00d4aa';ctx.lineWidth=1;ctx.setLineDash([2,3]);
+      ctx.beginPath();ctx.moveTo(x,chartArea.top);ctx.lineTo(x,chartArea.bottom);ctx.stroke();
+      ctx.setLineDash([]);
+      // Triangle marker at top
+      ctx.globalAlpha=0.9;ctx.fillStyle='#00d4aa';
+      ctx.beginPath();
+      ctx.moveTo(x,chartArea.top+2);
+      ctx.lineTo(x-4,chartArea.top+9);
+      ctx.lineTo(x+4,chartArea.top+9);
+      ctx.closePath();ctx.fill();
+      // Amount label
+      if(amount!=null){
+        ctx.font=`bold 6.5px 'JetBrains Mono',monospace`;
+        ctx.fillStyle='#00d4aa';ctx.textAlign='center';
+        ctx.fillText('÷'+amount.toFixed(2),x,chartArea.top+19);
+      }
+    });
+    ctx.restore();
+  }
+};
+
 // ── CANDLESTICK PLUGIN ──
 const CANDLE_PLUGIN={
   id:'candlestick',
@@ -1015,18 +1059,28 @@ function drawSpark(id,closes){
   sparks[id]=new Chart(c,{type:'line',data:{labels:pts.map((_,i)=>i),datasets:[{data:pts,borderColor:up?'#00e676':'#ff3355',borderWidth:1.5,pointRadius:0,tension:.3,fill:true,backgroundColor:up?'rgba(0,230,118,.06)':'rgba(255,51,85,.06)'}]},options:{responsive:true,maintainAspectRatio:false,animation:{duration:0},plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{x:{display:false},y:{display:false,min:Math.min(...pts)*.996,max:Math.max(...pts)*1.004}}}});
 }
 
-function drawMainChart(id,labels,values,cur,ohlc){
+function buildDivData(timestamps,dividends){
+  if(!dividends||!dividends.length||!timestamps||!timestamps.length)return[];
+  return dividends.map(d=>{
+    let best=0,bestDiff=Infinity;
+    timestamps.forEach((ts,i)=>{const diff=Math.abs(ts-d.ts);if(diff<bestDiff){bestDiff=diff;best=i;}});
+    return{idx:best,amount:d.amount};
+  }).filter(d=>d.amount!=null);
+}
+
+function drawMainChart(id,labels,values,cur,ohlc,timestamps,dividends){
   const c=document.getElementById('mc-'+id);
   if(!c)return;
   if(mainCharts[id]){try{mainCharts[id].destroy()}catch{}}
+  const divData=buildDivData(timestamps,dividends);
 
   // If no OHLC available, fall back to line chart
   if(!ohlc||!ohlc.length){
     const isUp=(values.at(-1)??0)>=(values[0]??0);
     const clr=isUp?'#00e676':'#ff3355';
     const mn=Math.min(...values),mx=Math.max(...values),pad=(mx-mn)*.04||1;
-    mainCharts[id]=new Chart(c,{
-      type:'line',plugins:[GRAD_PLUGIN],
+    const ch=new Chart(c,{
+      type:'line',plugins:[GRAD_PLUGIN,DIV_PLUGIN],
       data:{labels,datasets:[{data:values,borderColor:clr,borderWidth:1.8,pointRadius:0,pointHoverRadius:4,tension:.1,fill:true,backgroundColor:'transparent'}]},
       options:{
         responsive:true,maintainAspectRatio:false,animation:{duration:300},
@@ -1035,6 +1089,8 @@ function drawMainChart(id,labels,values,cur,ohlc){
         scales:{x:{grid:{color:'rgba(26,51,86,.2)',drawBorder:false},ticks:{color:'#4a6880',font:{size:9,family:"'JetBrains Mono',monospace"},maxRotation:0,maxTicksLimit:7,padding:2},border:{display:false}},y:{position:'right',min:mn-pad,max:mx+pad,grid:{color:'rgba(26,51,86,.2)',drawBorder:false},ticks:{color:'#4a6880',font:{size:9,family:"'JetBrains Mono',monospace"},callback:v=>fmt(v),maxTicksLimit:5,padding:4},border:{display:false}}}
       }
     });
+    ch._divData=divData;
+    mainCharts[id]=ch;
     return;
   }
 
@@ -1045,7 +1101,7 @@ function drawMainChart(id,labels,values,cur,ohlc){
 
   const ch=new Chart(c,{
     type:'bar',
-    plugins:[CANDLE_PLUGIN],
+    plugins:[CANDLE_PLUGIN,DIV_PLUGIN],
     data:{labels,datasets:[{
       data:floatData,
       backgroundColor:'transparent',
@@ -1084,6 +1140,7 @@ function drawMainChart(id,labels,values,cur,ohlc){
     }
   });
   ch._ohlcData=ohlc;
+  ch._divData=divData;
   mainCharts[id]=ch;
 }
 
@@ -1120,8 +1177,9 @@ async function switchPeriod(id,period){
   const asset=getAllAssets().find(a=>a.id===id);
   if(!asset){if(wrap)wrap.classList.remove('cloading');return}
   try{
-    const{labels,values,ohlc}=await getChartData(asset,period);
-    drawMainChart(id,labels,values,CUR_SYM[asset.cur]||'',ohlc);
+    const{labels,values,ohlc,timestamps}=await getChartData(asset,period);
+    const divs=dataCache[id]?.dividends||[];
+    drawMainChart(id,labels,values,CUR_SYM[asset.cur]||'',ohlc,timestamps,divs);
   }catch(e){console.warn('Chart fetch',id,period,e)}
   if(wrap)wrap.classList.remove('cloading');
 }
@@ -2269,37 +2327,73 @@ function renderDAPatterns(patterns,trend,sr){
   if(el)el.innerHTML=html;
 }
 
-function renderDAEvents(events){
+function renderDAEvents(pastEvents){
   const el=document.getElementById('da-events');
   if(!el)return;
-  if(!events.length){
-    el.innerHTML=`<div class="da-empty">No major macro events recorded in this time window.<br><span style="font-size:9px">Select a longer period (1Y or 5Y) to see event analysis.</span></div>`;
-    return;
-  }
   const typeLabel={fed:'Fed Policy',geo:'Geopolitical',eco:'Economic',crypto:'Crypto',cb:'Intl. Central Bank'};
-  const sorted=[...events].sort((a,b)=>b.date.localeCompare(a.date));
-  el.innerHTML=`<div class="ev-list">${sorted.map(ev=>{
-    const chg=ev.chg5,c10=ev.chg10;
-    const chgStr=chg!=null?(chg>=0?'+':'')+chg.toFixed(1)+'%':'—';
-    const chgCls=chg==null?'':chg>=0?'up':'dn';
-    const c10Str=c10!=null?(c10>=0?'+':'')+c10.toFixed(1)+'%':'';
-    return`<div class="ev-item">
-      <div class="ev-dot ${ev.type}"></div>
-      <div>
-        <div class="ev-title">${ev.title} <span style="font-size:8px;font-weight:400;color:var(--tdim)">${typeLabel[ev.type]||''}</span></div>
-        <div class="ev-date">${ev.date}</div>
-        <div class="ev-desc">${ev.desc}</div>
-      </div>
-      <div class="ev-chg">
-        <span class="ev-chg-v ${chgCls}">${chgStr}</span>
-        <span class="ev-chg-l">5-day return</span>
-        ${c10Str?`<span class="ev-chg-v ${chgCls}" style="font-size:10px;margin-top:3px">${c10Str}</span><span class="ev-chg-l">10-day return</span>`:''}
-      </div>
-    </div>`;
-  }).join('')}</div>
-  <div style="font-size:8px;color:var(--tdim);margin-top:8px;font-style:italic;line-height:1.4">
-    * Returns measured from event date open to +5/+10 bars. Past event reactions do not predict future behavior. For educational purposes only.
-  </div>`;
+  const now=Date.now();
+  const in90d=now+90*24*3600*1000;
+
+  // Upcoming events (next 90 days from MACRO_EVENTS master list)
+  const upcoming=MACRO_EVENTS.filter(ev=>{
+    const ms=new Date(ev.date).getTime();
+    return ms>now&&ms<=in90d;
+  }).sort((a,b)=>a.date.localeCompare(b.date));
+
+  // Past events with impact data, sorted newest first
+  const sorted=[...pastEvents].sort((a,b)=>b.date.localeCompare(a.date));
+
+  let html='';
+
+  if(upcoming.length){
+    html+=`<div class="ev-upcoming-hdr">📅 Upcoming — next 90 days</div>`;
+    html+=`<div class="ev-list" style="margin-bottom:8px">${upcoming.map(ev=>{
+      const ms=new Date(ev.date).getTime();
+      const daysLeft=Math.ceil((ms-now)/86400000);
+      const dStr=daysLeft===0?'Today':daysLeft===1?'Tomorrow':`in ${daysLeft}d`;
+      return`<div class="ev-item ev-upcoming">
+        <div class="ev-dot ${ev.type}"></div>
+        <div>
+          <div class="ev-title">${ev.title}<span class="up-badge">UPCOMING</span></div>
+          <div class="ev-date">${ev.date} · <span style="font-size:8px;font-weight:400;color:var(--tdim)">${typeLabel[ev.type]||''}</span></div>
+          <div class="ev-desc">${ev.desc}</div>
+        </div>
+        <div class="ev-chg">
+          <span class="ev-countdown">${dStr}</span>
+          <span class="ev-countdown-lbl">from today</span>
+        </div>
+      </div>`;
+    }).join('')}</div>`;
+  }
+
+  if(sorted.length){
+    html+=`<div class="ev-past-hdr">📊 Historical impact</div>`;
+    html+=`<div class="ev-list">${sorted.map(ev=>{
+      const chg=ev.chg5,c10=ev.chg10;
+      const chgStr=chg!=null?(chg>=0?'+':'')+chg.toFixed(1)+'%':'—';
+      const chgCls=chg==null?'':chg>=0?'up':'dn';
+      const c10Str=c10!=null?(c10>=0?'+':'')+c10.toFixed(1)+'%':'';
+      return`<div class="ev-item">
+        <div class="ev-dot ${ev.type}"></div>
+        <div>
+          <div class="ev-title">${ev.title} <span style="font-size:8px;font-weight:400;color:var(--tdim)">${typeLabel[ev.type]||''}</span></div>
+          <div class="ev-date">${ev.date}</div>
+          <div class="ev-desc">${ev.desc}</div>
+        </div>
+        <div class="ev-chg">
+          <span class="ev-chg-v ${chgCls}">${chgStr}</span>
+          <span class="ev-chg-l">5-day return</span>
+          ${c10Str?`<span class="ev-chg-v ${chgCls}" style="font-size:10px;margin-top:3px">${c10Str}</span><span class="ev-chg-l">10-day return</span>`:''}
+        </div>
+      </div>`;
+    }).join('')}</div>
+    <div style="font-size:8px;color:var(--tdim);margin-top:8px;font-style:italic;line-height:1.4">* Returns measured from event date open to +5/+10 bars. Past reactions do not predict future behavior.</div>`;
+  }
+
+  if(!html){
+    html=`<div class="da-empty">No major macro events in this window.<br><span style="font-size:9px">Select 1Y or 5Y to see event analysis.</span></div>`;
+  }
+  el.innerHTML=html;
 }
 
 // ═══════════════════════════════════════════════════
