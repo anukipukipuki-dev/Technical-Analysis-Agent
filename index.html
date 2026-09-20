@@ -565,6 +565,9 @@ const FUND_DESC = {
   'ROE':            'Return on Equity — net income divided by shareholders\' equity. Measures how efficiently a company uses investor capital to generate profit. Above 15% is generally considered strong.',
   'Debt/Equity':    'Total debt divided by shareholders\' equity. Higher = more financial leverage. Above 2× may signal elevated risk in a downturn; capital-intensive industries naturally run higher.',
   'Revenue Growth': 'Year-over-year revenue growth rate. Positive = the business is expanding its top line. Negative = contraction. A key metric for evaluating growth vs. value stocks.',
+  'Ann. Volatility': 'Annualised price volatility computed from 1-year daily returns (standard deviation × √252). Below 15% = low risk; 15–30% = moderate; above 30% = high. Computed from chart data.',
+  '1Y Performance': 'Total price return over the past year, computed from chart history. Represents the buy-and-hold gain or loss if you had invested exactly 1 year ago.',
+  'Currency':       'The currency in which this asset is priced on its primary exchange.',
   'Rank':           'Rank by market capitalization among all cryptocurrencies. #1 is the largest. Bitcoin has been #1 since inception — maintaining this is considered a key health indicator.',
   '24h Volume':     'Total USD value of Bitcoin traded across all exchanges in the last 24 hours. High volume confirms price moves; low volume during a move may indicate a false breakout.',
   'Circ. Supply':   'Number of Bitcoin currently in circulation. New BTC is created via mining at a rate that halves every ~4 years (next halving ~2028). Current supply ~19.7M of 21M max.',
@@ -677,62 +680,63 @@ async function fetchCoinGecko(){
 }
 
 async function fetchFundamentals(symbol){
-  // Strategy 1: Yahoo v10 quoteSummary (full fundamentals — margins, ROE, debt/equity, etc.)
-  // Includes 'price' module so regularMarketPrice is always present for 52W Position calc
-  const v10url=`https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=price,summaryDetail,defaultKeyStatistics,financialData`;
-  try{
-    const data=await fetchJSON(v10url);
-    const r=data?.quoteSummary?.result?.[0];
-    // Accept result only if it has at least one non-empty module
-    if(r&&(r.summaryDetail||r.defaultKeyStatistics||r.financialData||r.price))return r;
-  }catch(e){console.warn('v10 fund failed for',symbol,':',e.message);}
+  // Helper: normalise flat v7/v6 numbers to v10 {raw:x} so buildYahooFund works unchanged
+  const w=(n)=>n!=null&&!isNaN(n)?{raw:n}:null;
+  const normQ=(q)=>({
+    _source:'v7',
+    price:{regularMarketPrice:w(q.regularMarketPrice),previousClose:w(q.regularMarketPreviousClose)},
+    summaryDetail:{
+      fiftyTwoWeekHigh:w(q.fiftyTwoWeekHigh),fiftyTwoWeekLow:w(q.fiftyTwoWeekLow),
+      regularMarketPrice:w(q.regularMarketPrice),previousClose:w(q.regularMarketPreviousClose),
+      trailingPE:w(q.trailingPE),forwardPE:w(q.forwardPE),marketCap:w(q.marketCap),
+      dividendYield:w(q.trailingAnnualDividendYield),beta:w(q.beta),
+      averageVolume:w(q.averageVolume||q.averageDailyVolume3Month),
+      averageVolume10days:w(q.averageVolume10Day),
+      fiftyDayAverage:w(q.fiftyDayAverage),twoHundredDayAverage:w(q.twoHundredDayAverage),
+    },
+    defaultKeyStatistics:{
+      trailingPE:w(q.trailingPE),forwardPE:w(q.forwardPE),priceToBook:w(q.priceToBook),
+      trailingEps:w(q.epsTrailingTwelveMonths),forwardEps:w(q.epsForward),beta:w(q.beta),
+    },
+    financialData:{
+      profitMargins:w(q.profitMargins),returnOnEquity:w(q.returnOnEquity),
+      debtToEquity:w(q.debtToEquity),revenueGrowth:w(q.revenueGrowth),
+    },
+  });
 
-  // Strategy 2: Yahoo v7 quote API — more CORS-friendly, flat JSON (no .raw wrapper)
-  // Covers: 52W range, P/E, EPS, P/B, beta, market cap, volume, MAs, dividend yield
-  const v7url=`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}`;
-  try{
-    const data=await fetchJSON(v7url);
-    const q=data?.quoteResponse?.result?.[0];
-    if(!q)return null;
-    // Normalize flat v7 numbers to v10's {raw:x} format so buildYahooFund works unchanged
-    const w=(n)=>n!=null&&!isNaN(n)?{raw:n}:null;
-    return{
-      _source:'v7',
-      price:{
-        regularMarketPrice:w(q.regularMarketPrice),
-        previousClose:w(q.regularMarketPreviousClose),
-      },
-      summaryDetail:{
-        fiftyTwoWeekHigh:w(q.fiftyTwoWeekHigh),
-        fiftyTwoWeekLow:w(q.fiftyTwoWeekLow),
-        regularMarketPrice:w(q.regularMarketPrice),
-        previousClose:w(q.regularMarketPreviousClose),
-        trailingPE:w(q.trailingPE),
-        forwardPE:w(q.forwardPE),
-        marketCap:w(q.marketCap),
-        dividendYield:w(q.trailingAnnualDividendYield),
-        beta:w(q.beta),
-        averageVolume:w(q.averageVolume||q.averageDailyVolume3Month),
-        averageVolume10days:w(q.averageVolume10Day),
-        fiftyDayAverage:w(q.fiftyDayAverage),
-        twoHundredDayAverage:w(q.twoHundredDayAverage),
-      },
-      defaultKeyStatistics:{
-        trailingPE:w(q.trailingPE),
-        forwardPE:w(q.forwardPE),
-        priceToBook:w(q.priceToBook),
-        trailingEps:w(q.epsTrailingTwelveMonths),
-        forwardEps:w(q.epsForward),
-        beta:w(q.beta),
-      },
-      financialData:{
-        profitMargins:w(q.profitMargins),
-        returnOnEquity:w(q.returnOnEquity),
-        debtToEquity:w(q.debtToEquity),
-        revenueGrowth:w(q.revenueGrowth),
-      },
-    };
-  }catch(e){console.warn('v7 fund also failed for',symbol,':',e.message);}
+  const sym=encodeURIComponent(symbol);
+
+  // Strategy 1: Yahoo v10 quoteSummary via multiple proxies
+  for(const host of['query1','query2']){
+    const url=`https://${host}.finance.yahoo.com/v10/finance/quoteSummary/${sym}?modules=price,summaryDetail,defaultKeyStatistics,financialData`;
+    for(const proxyFn of[
+      ()=>fetch(url,{signal:mkAbort(7000)}).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}),
+      ()=>fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`,{signal:mkAbort(11000)}).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}),
+      ()=>fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,{signal:mkAbort(13000)}).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}),
+    ]){
+      try{
+        const data=await proxyFn();
+        const r=data?.quoteSummary?.result?.[0];
+        if(r&&(r.summaryDetail||r.defaultKeyStatistics||r.financialData||r.price))return r;
+      }catch(e){/* try next */}
+    }
+  }
+
+  // Strategy 2: Yahoo v7 quote via multiple proxies
+  const v7url=`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${sym}`;
+  for(const proxyFn of[
+    ()=>fetch(v7url,{signal:mkAbort(7000)}).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}),
+    ()=>fetch(`https://corsproxy.io/?${encodeURIComponent(v7url)}`,{signal:mkAbort(11000)}).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}),
+    ()=>fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(v7url)}`,{signal:mkAbort(13000)}).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}),
+    ()=>fetch(`https://corsproxy.io/?${encodeURIComponent(v7url.replace('query1','query2'))}`,{signal:mkAbort(11000)}).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}),
+  ]){
+    try{
+      const data=await proxyFn();
+      const q=data?.quoteResponse?.result?.[0];
+      if(q&&q.regularMarketPrice)return normQ(q);
+    }catch(e){/* try next */}
+  }
+
   return null;
 }
 
@@ -919,6 +923,36 @@ function fmtTime(ts){return new Date(ts*1000).toLocaleTimeString('en-US',{hour:'
 // ═══════════════════════════════════════════════════
 //  FUNDAMENTAL BUILDERS
 // ═══════════════════════════════════════════════════
+
+// Build price-derived metrics from existing dataCache (always available when chart loaded)
+function buildPriceDerivedFund(dc){
+  const items=[];
+  if(!dc||!dc.closes||dc.closes.length<2)return items;
+  const add=(k,v,cls='')=>{if(v!=null&&v!=='—')items.push({k,v,cls})};
+  const closes=dc.closes;
+  const slice=closes.slice(-252); // up to 1 year of trading days
+  const hi=Math.max(...slice);
+  const lo=Math.min(...slice);
+  const lc=dc.lastClose||closes.at(-1);
+  add('52W Range',`${fmt(lo)} – ${fmt(hi)}`);
+  if(hi>lo){const pos52=((lc-lo)/(hi-lo)*100).toFixed(0);add('52W Position',pos52+'%',+pos52>80?'neg':+pos52<20?'pos':'neu')}
+  // Moving averages from closes
+  const ma=(n)=>{if(closes.length<n)return null;const s=closes.slice(-n);return s.reduce((a,b)=>a+b,0)/s.length};
+  const ma50=ma(50);if(ma50)add('50-Day MA',fmt(ma50),lc>ma50?'pos':'neg');
+  const ma200=ma(200);if(ma200)add('200-Day MA',fmt(ma200),lc>ma200?'pos':'neg');
+  // Annualised volatility
+  if(slice.length>=20){
+    const rets=slice.slice(1).map((c,i)=>Math.log(c/slice[i]));
+    const avg=rets.reduce((a,b)=>a+b,0)/rets.length;
+    const vol=(Math.sqrt(rets.reduce((a,b)=>a+(b-avg)**2,0)/rets.length*252)*100).toFixed(1);
+    add('Ann. Volatility',vol+'%',+vol>30?'neg':+vol<15?'pos':'neu');
+  }
+  // 1-year performance
+  if(closes.length>=2){const perf=(lc/closes[0]-1)*100;add('1Y Performance',fmtPct(perf,1),perf>0?'pos':'neg')}
+  if(dc.cur)add('Currency',dc.cur);
+  return items;
+}
+
 function buildYahooFund(raw){
   const items=[];
   if(!raw)return items;
@@ -1392,11 +1426,28 @@ function toggleFund(id){
 async function loadFund(asset){
   const el=document.getElementById('fcnt-'+asset.id);
   if(!el)return;
-  if(fundCache[asset.id]){el.innerHTML=renderFundItems(fundCache[asset.id]);return}
+  if(fundCache[asset.id]&&fundCache[asset.id].length>0){el.innerHTML=renderFundItems(fundCache[asset.id]);return}
   let items=[];
   try{
-    if(asset.type==='yahoo'){const raw=await fetchFundamentals(asset.symbol);items=buildYahooFund(raw)}
-    else{const{cg,fng}=await fetchBtcFund();items=buildBtcFund(cg,fng)}
+    if(asset.type==='yahoo'){
+      // Step 1: always build price-derived items from cached chart data (never fails)
+      const dc=dataCache[asset.id];
+      const priceItems=buildPriceDerivedFund(dc);
+
+      // Step 2: try API for additional metrics (P/E, Market Cap, EPS, etc.)
+      let apiItems=[];
+      try{
+        const raw=await fetchFundamentals(asset.symbol);
+        apiItems=buildYahooFund(raw);
+      }catch(e){console.warn('Fund API',e)}
+
+      // Merge: API data takes priority over price-derived for same keys
+      const apiKeys=new Set(apiItems.map(i=>i.k));
+      items=[...apiItems,...priceItems.filter(i=>!apiKeys.has(i.k))];
+    } else {
+      const{cg,fng}=await fetchBtcFund();
+      items=buildBtcFund(cg,fng);
+    }
   }catch(e){console.warn('Fund fetch',e)}
   fundCache[asset.id]=items;
   if(el)el.innerHTML=renderFundItems(items);
